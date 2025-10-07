@@ -114,7 +114,7 @@ func LoadAppConfig[T HasBaseConfig](config T, serviceName, version string) error
 	if config.GetBase().HumanReadableOutput {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: false})
 	}
-	
+
 	*Cfg = *config.GetBase()
 
 	return nil
