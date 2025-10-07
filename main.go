@@ -8,6 +8,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+var (
+	errLoadConfigFile = "failed to load config file:"
+	errLoadConfig     = "failed to load configuration"
+	errDecode         = "unable to decode into struct:"
+	errInvalidConfig  = "config invalid:"
+)
+
 type BaseConfig struct {
 	HumanReadableOutput bool   `mapstructure:"human_readable_output" validate:"required"`
 	LogLevel            string `mapstructure:"log_level"             validate:"required,oneof=debug info warn error"`
@@ -24,12 +31,12 @@ func tryLoadFile(filename string, paths ...string) {
 	var fileNotFoundError *viper.ConfigFileNotFoundError
 	if err != nil && errors.As(err, fileNotFoundError) {
 		fmt.Println(
-			fmt.Errorf("failed to load config file: %w", err),
+			fmt.Errorf("%s %w", errLoadConfigFile, err),
 		)
 	}
 }
 
-var errConfigLoading = errors.New("failed to load configuration")
+var errConfigLoading = errors.New(errLoadConfig)
 
 func configLoadingError(reason string, err error) error {
 	return fmt.Errorf("%w: %s: %w", errConfigLoading, reason, err)
@@ -49,7 +56,7 @@ func LoadAppConfig(config BaseConfig) error {
 	// Validate config
 	unmarshalErr := viper.Unmarshal(config)
 	if unmarshalErr != nil {
-		return configLoadingError("Unable to decode into struct", unmarshalErr)
+		return configLoadingError(errDecode, unmarshalErr)
 	}
 
 	var validationErr *validator.ValidationErrors
@@ -61,7 +68,7 @@ func LoadAppConfig(config BaseConfig) error {
 	}
 
 	if len(*validationErr) > 0 {
-		return configLoadingError("Config invalid", errors.Join(formattedErrs...))
+		return configLoadingError(errInvalidConfig, errors.Join(formattedErrs...))
 	}
 
 	return nil
