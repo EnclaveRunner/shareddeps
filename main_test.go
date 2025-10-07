@@ -1,5 +1,6 @@
-// nolint:errcheck,exhaustruct,gosec,intrange,paralleltest,varnamelen,golines // Test configuration
 // with various struct patterns and environment variables
+//
+//nolint:errcheck,exhaustruct,gosec,intrange,paralleltest,varnamelen // Test configuration
 package shareddeps
 
 import (
