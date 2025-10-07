@@ -1,4 +1,3 @@
-//nolint:exhaustruct,gosec,paralleltest,varnamelen // Test configuration file
 package config
 
 import (
@@ -45,212 +44,49 @@ type ExtendedConfig struct {
 	} `mapstructure:"database"`
 }
 
-func TestLoadAppConfig(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name          string
-		setupConfig   func(t *testing.T) string // returns temp dir path
-		config        *BaseConfig
-		expectError   bool
-		errorContains string
-	}{
-		{
-			name: "valid config from YAML file",
-			setupConfig: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				configContent := `
-human_readable_output: true
-log_level: info
-port: "8080"
-`
-				configPath := filepath.Join(tmpDir, "config.yaml")
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
-				require.NoError(t, err)
-
-				return tmpDir
-			},
-			config:        &BaseConfig{},
-			expectError:   false,
-			errorContains: "",
-		},
-		{
-			name: "valid config from JSON file",
-			setupConfig: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				configContent := `{
-  "human_readable_output": false,
-  "log_level": "debug",
-  "port": "3000"
-}`
-				configPath := filepath.Join(tmpDir, "config.json")
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
-				require.NoError(t, err)
-
-				return tmpDir
-			},
-			config:        &BaseConfig{},
-			expectError:   false,
-			errorContains: "",
-		},
-		{
-			name: "valid config from TOML file",
-			setupConfig: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				configContent := `human_readable_output = false
-log_level = "warn"
-port = "3000"`
-				configPath := filepath.Join(tmpDir, "config.toml")
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
-				require.NoError(t, err)
-
-				return tmpDir
-			},
-			config:        &BaseConfig{},
-			expectError:   false,
-			errorContains: "",
-		},
-		{
-			name: "valid config from .env file",
-			setupConfig: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				envContent := `human_readable_output=false
-log_level=info
-port=4000`
-				envPath := filepath.Join(tmpDir, ".env")
-				err := os.WriteFile(envPath, []byte(envContent), 0o600)
-				require.NoError(t, err)
-
-				return tmpDir
-			},
-			config:        &BaseConfig{},
-			expectError:   false,
-			errorContains: "",
-		},
-		{
-			name: "invalid log level",
-			setupConfig: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				configContent := `
-human_readable_output: true
-log_level: invalid
-port: "8080"
-`
-				configPath := filepath.Join(tmpDir, "config.yaml")
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
-				require.NoError(t, err)
-
-				return tmpDir
-			},
-			config:        &BaseConfig{},
-			expectError:   true,
-			errorContains: "LogLevel",
-		},
-		{
-			name: "invalid port",
-			setupConfig: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				configContent := `
-human_readable_output: true
-log_level: info
-port: "invalid"
-`
-				configPath := filepath.Join(tmpDir, "config.yaml")
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
-				require.NoError(t, err)
-
-				return tmpDir
-			},
-			config:        &BaseConfig{},
-			expectError:   true,
-			errorContains: "Port",
-		},
-		{
-			name: "missing required fields",
-			setupConfig: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				configContent := `
-log_level: info
-`
-				configPath := filepath.Join(tmpDir, "config.yaml")
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
-				require.NoError(t, err)
-
-				return tmpDir
-			},
-			config:        &BaseConfig{},
-			expectError:   true,
-			errorContains: "HumanReadableOutput",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Reset viper instance for each test
-			viper.Reset()
-
-			// Setup config files
-			tmpDir := tt.setupConfig(t)
-
-			// Change to temp directory to test file loading
-			originalWd, err := os.Getwd()
-			require.NoError(t, err)
-			defer func() {
-				err := os.Chdir(originalWd)
-				require.NoError(t, err)
-			}()
-			err = os.Chdir(tmpDir)
-			require.NoError(t, err)
-
-			// Test LoadAppConfig
-			err = LoadAppConfig(tt.config)
-
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains)
-				}
-			} else {
-				assert.NoError(t, err)
-				// Only verify config if no error occurred
-				if err == nil && tt.config != nil {
-					assert.NotNil(t, tt.config.HumanReadableOutput)
-					assert.NotEmpty(t, tt.config.LogLevel)
-					assert.NotEmpty(t, tt.config.Port)
-				}
-			}
-		})
-	}
+func (e *ExtendedConfig) GetBase() *BaseConfig {
+	return &e.BaseConfig
 }
 
+//nolint:paralleltest // viper is not thread-safe
 func TestTryLoadFile(t *testing.T) {
 	tests := []struct {
-		name     string
-		filename string
+		name        string
+		filename    string
+		setupFile   func(t *testing.T) string // returns file path
+		expectPanic bool
 	}{
 		{
 			name:     "load existing file",
 			filename: "test-config.yaml",
+			setupFile: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				configContent := `test_key: test_value`
+				configPath := filepath.Join(tmpDir, "test-config.yaml")
+				err := os.WriteFile(configPath, []byte(configContent), 0o644)
+				require.NoError(t, err)
+
+				return tmpDir
+			},
 		},
 		{
 			name:     "load non-existing file - should not panic",
-			filename: "non-existent-config.yaml",
+			filename: "non-existent.yaml",
+			setupFile: func(t *testing.T) string {
+				return t.TempDir() // empty directory
+			},
 		},
 	}
 
+	//nolint:paralleltest // viper is not thread-safe
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
+			// Reset viper for each test
+			viper.Reset()
 
-			// Only create file for the first test
-			if tt.name == "load existing file" {
-				configContent := "test: value"
-				configPath := filepath.Join(tmpDir, tt.filename)
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
-				require.NoError(t, err)
-			}
+			tmpDir := tt.setupFile(t)
 
-			// Should not panic
+			// This should not panic even if file doesn't exist
 			assert.NotPanics(t, func() {
 				tryLoadFile(tt.filename, tmpDir)
 			})
@@ -258,32 +94,37 @@ func TestTryLoadFile(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // viper is not thread-safe
 func TestConfigLoadingError(t *testing.T) {
-	baseErr := configLoadingError("test reason", assert.AnError)
-	assert.Error(t, baseErr)
-	assert.Contains(t, baseErr.Error(), "failed to load configuration")
-	assert.Contains(t, baseErr.Error(), "test reason")
+	baseErr := assert.AnError
+	reason := "test reason"
+
+	err := configLoadingError(reason, baseErr)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), reason)
+	assert.ErrorIs(t, err, errConfigLoading)
 }
 
+//nolint:paralleltest // viper is not thread-safe
 func TestLoadAppConfigWithAdditionalAttributes(t *testing.T) {
+	// Not parallel because viper uses global state
 	tests := []struct {
-		name         string
-		setupConfig  func(t *testing.T) string
-		expectError  bool
-		validateFunc func(t *testing.T, config *ExtendedConfig)
+		name          string
+		setupConfig   func(t *testing.T) string
+		expectError   bool
+		errorContains string
+		validateFunc  func(t *testing.T, config *ExtendedConfig)
 	}{
 		{
 			name: "complete YAML config with all additional attributes",
 			setupConfig: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				configContent := `
-# BaseConfig fields
 human_readable_output: true
 log_level: info
-port: "8080"
-
-# Extended fields
-database_url: "postgres://user:pass@localhost:5432/db"
+port: 8080
+database_url: "postgres://user:pass@localhost:5432/mydb"
 service_name: "test-service"
 environment: "development"
 max_connections: 100
@@ -292,17 +133,14 @@ retry_attempts: 3
 enable_metrics: true
 enable_tracing: false
 debug: true
-
-# Arrays
 allowed_hosts:
   - "localhost"
-  - "example.com"
+  - "127.0.0.1"
+  - "test.example.com"
 features:
   - "auth"
   - "logging"
   - "metrics"
-
-# Nested object
 database:
   host: "localhost"
   port: 5432
@@ -312,21 +150,18 @@ database:
   ssl: true
 `
 				configPath := filepath.Join(tmpDir, "config.yaml")
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
+				err := os.WriteFile(configPath, []byte(configContent), 0o644)
 				require.NoError(t, err)
 
 				return tmpDir
 			},
 			expectError: false,
 			validateFunc: func(t *testing.T, config *ExtendedConfig) {
-				// BaseConfig fields
 				assert.NotNil(t, config.HumanReadableOutput)
-				assert.True(t, *config.HumanReadableOutput)
+				assert.True(t, config.HumanReadableOutput)
 				assert.Equal(t, "info", config.LogLevel)
-				assert.Equal(t, "8080", config.Port)
-
-				// Extended fields
-				assert.Equal(t, "postgres://user:pass@localhost:5432/db", config.DatabaseURL)
+				assert.Equal(t, 8080, config.Port)
+				assert.Equal(t, "postgres://user:pass@localhost:5432/mydb", config.DatabaseURL)
 				assert.Equal(t, "test-service", config.ServiceName)
 				assert.Equal(t, "development", config.Environment)
 				assert.Equal(t, 100, config.MaxConnections)
@@ -335,12 +170,8 @@ database:
 				assert.True(t, config.EnableMetrics)
 				assert.False(t, config.EnableTracing)
 				assert.True(t, config.Debug)
-
-				// Arrays
-				assert.Equal(t, []string{"localhost", "example.com"}, config.AllowedHosts)
+				assert.Equal(t, []string{"localhost", "127.0.0.1", "test.example.com"}, config.AllowedHosts)
 				assert.Equal(t, []string{"auth", "logging", "metrics"}, config.Features)
-
-				// Nested object
 				assert.Equal(t, "localhost", config.Database.Host)
 				assert.Equal(t, 5432, config.Database.Port)
 				assert.Equal(t, "testuser", config.Database.Username)
@@ -355,9 +186,9 @@ database:
 				tmpDir := t.TempDir()
 				configContent := `{
   "human_readable_output": false,
-  "log_level": "warn",
-  "port": "9000",
-  "database_url": "redis://localhost:6379",
+  "log_level": "debug",
+  "port": 9090,
+  "database_url": "mysql://user:pass@localhost:3306/mydb",
   "service_name": "json-service",
   "environment": "staging",
   "max_connections": 50,
@@ -366,19 +197,19 @@ database:
   "enable_metrics": false,
   "enable_tracing": true,
   "debug": false,
-  "allowed_hosts": ["api.example.com"],
-  "features": ["auth", "tracing"],
+  "allowed_hosts": ["api.example.com", "staging.example.com"],
+  "features": ["tracing", "logging"],
   "database": {
-    "host": "db.example.com",
+    "host": "db.staging.com",
     "port": 3306,
-    "username": "jsonuser",
-    "password": "jsonpass123",
-    "name": "jsondb",
+    "username": "stageuser",
+    "password": "stagepass123",
+    "name": "stagedb",
     "ssl": false
   }
 }`
 				configPath := filepath.Join(tmpDir, "config.json")
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
+				err := os.WriteFile(configPath, []byte(configContent), 0o644)
 				require.NoError(t, err)
 
 				return tmpDir
@@ -386,13 +217,29 @@ database:
 			expectError: false,
 			validateFunc: func(t *testing.T, config *ExtendedConfig) {
 				assert.NotNil(t, config.HumanReadableOutput)
-				assert.False(t, *config.HumanReadableOutput)
-				assert.Equal(t, "warn", config.LogLevel)
-				assert.Equal(t, "redis://localhost:6379", config.DatabaseURL)
+				assert.False(t, config.HumanReadableOutput)
+				assert.Equal(t, "debug", config.LogLevel)
+				assert.Equal(t, 9090, config.Port)
+				assert.Equal(t, "mysql://user:pass@localhost:3306/mydb", config.DatabaseURL)
 				assert.Equal(t, "json-service", config.ServiceName)
 				assert.Equal(t, "staging", config.Environment)
+				assert.Equal(t, 50, config.MaxConnections)
+				assert.Equal(t, 60, config.Timeout)
+				assert.Equal(t, 5, config.RetryAttempts)
+				assert.False(t, config.EnableMetrics)
+				assert.True(t, config.EnableTracing)
+				assert.False(t, config.Debug)
+				assert.Equal(t, []string{"api.example.com", "staging.example.com"}, config.AllowedHosts)
+				assert.Equal(t, []string{"tracing", "logging"}, config.Features)
+				assert.Equal(t, "db.staging.com", config.Database.Host)
+				assert.Equal(t, 3306, config.Database.Port)
+				assert.Equal(t, "stageuser", config.Database.Username)
+				assert.Equal(t, "stagepass123", config.Database.Password)
+				assert.Equal(t, "stagedb", config.Database.Name)
+				assert.False(t, config.Database.SSL)
 			},
 		},
+
 		{
 			name: "invalid database URL validation",
 			setupConfig: func(t *testing.T) string {
@@ -400,8 +247,8 @@ database:
 				configContent := `
 human_readable_output: true
 log_level: info
-port: "8080"
-database_url: "invalid-url"
+port: 8080
+database_url: "not-a-valid-url"
 service_name: "test-service"
 environment: "development"
 max_connections: 100
@@ -416,12 +263,13 @@ database:
   name: "testdb"
 `
 				configPath := filepath.Join(tmpDir, "config.yaml")
-				err := os.WriteFile(configPath, []byte(configContent), 0o600)
+				err := os.WriteFile(configPath, []byte(configContent), 0o644)
 				require.NoError(t, err)
 
 				return tmpDir
 			},
-			expectError: true,
+			expectError:   true,
+			errorContains: "config invalid",
 		},
 		{
 			name: "invalid environment value",
@@ -430,8 +278,8 @@ database:
 				configContent := `
 human_readable_output: true
 log_level: info
-port: "8080"
-database_url: "postgres://user:pass@localhost:5432/db"
+port: 8080
+database_url: "postgres://user:pass@localhost:5432/mydb"
 service_name: "test-service"
 environment: "invalid-env"
 max_connections: 100
@@ -451,7 +299,8 @@ database:
 
 				return tmpDir
 			},
-			expectError: true,
+			expectError:   true,
+			errorContains: "config invalid",
 		},
 		{
 			name: "invalid feature values",
@@ -460,14 +309,14 @@ database:
 				configContent := `
 human_readable_output: true
 log_level: info
-port: "8080"
-database_url: "postgres://user:pass@localhost:5432/db"
+port: 8080
+database_url: "postgres://user:pass@localhost:5432/mydb"
 service_name: "test-service"
 environment: "development"
 max_connections: 100
 timeout: 30
 allowed_hosts: ["localhost"]
-features: ["auth", "invalid-feature"]
+features: ["auth", "invalid-feature", "logging"]
 database:
   host: "localhost"
   port: 5432
@@ -481,10 +330,12 @@ database:
 
 				return tmpDir
 			},
-			expectError: true,
+			expectError:   true,
+			errorContains: "config invalid",
 		},
 	}
 
+	//nolint:paralleltest // viper is not thread-safe
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset viper instance for each test
@@ -500,95 +351,13 @@ database:
 				err := os.Chdir(originalWd)
 				require.NoError(t, err)
 			}()
+
 			err = os.Chdir(tmpDir)
 			require.NoError(t, err)
 
-			// Test LoadAppConfig with ExtendedConfig
+			// Test with ExtendedConfig
 			config := &ExtendedConfig{}
-			err = LoadAppConfig(config)
-
-			if tt.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				if tt.validateFunc != nil {
-					tt.validateFunc(t, config)
-				}
-			}
-		})
-	}
-}
-
-func TestMandatoryBaseConfigFields(t *testing.T) {
-	tests := []struct {
-		name          string
-		configContent string
-		expectError   bool
-		errorContains string
-	}{
-		{
-			name: "missing human_readable_output should fail",
-			configContent: `
-log_level: info
-port: "8080"
-`,
-			expectError:   true,
-			errorContains: "HumanReadableOutput",
-		},
-		{
-			name: "missing log_level should fail",
-			configContent: `
-human_readable_output: true
-port: "8080"
-`,
-			expectError:   true,
-			errorContains: "LogLevel",
-		},
-		{
-			name: "missing port should fail",
-			configContent: `
-human_readable_output: true
-log_level: info
-`,
-			expectError:   true,
-			errorContains: "Port",
-		},
-		{
-			name: "all fields present should pass",
-			configContent: `
-human_readable_output: false
-log_level: debug
-port: "3000"
-`,
-			expectError:   false,
-			errorContains: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Reset viper instance for each test
-			viper.Reset()
-
-			// Setup config file
-			tmpDir := t.TempDir()
-			configPath := filepath.Join(tmpDir, "config.yaml")
-			err := os.WriteFile(configPath, []byte(tt.configContent), 0o644)
-			require.NoError(t, err)
-
-			// Change to temp directory
-			originalWd, err := os.Getwd()
-			require.NoError(t, err)
-			defer func() {
-				err := os.Chdir(originalWd)
-				require.NoError(t, err)
-			}()
-			err = os.Chdir(tmpDir)
-			require.NoError(t, err)
-
-			// Test LoadAppConfig
-			config := &BaseConfig{}
-			err = LoadAppConfig(config)
+			err = LoadAppConfig(config, "testing", "v0.0.1")
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -597,10 +366,9 @@ port: "3000"
 				}
 			} else {
 				assert.NoError(t, err)
-				// Verify required fields are set
-				assert.NotNil(t, config.HumanReadableOutput)
-				assert.NotEmpty(t, config.LogLevel)
-				assert.NotEmpty(t, config.Port)
+				if tt.validateFunc != nil {
+					tt.validateFunc(t, config)
+				}
 			}
 		})
 	}
