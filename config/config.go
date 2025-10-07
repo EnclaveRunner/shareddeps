@@ -13,9 +13,10 @@ import (
 )
 
 type BaseConfig struct {
-	HumanReadableOutput bool   `mapstructure:"human_readable_output" validate:""`
-	LogLevel            string `mapstructure:"log_level"             validate:"oneof=debug info warn error"`
-	Port                int    `mapstructure:"port"                  validate:"numeric,min=1,max=65535"`
+	HumanReadableOutput   bool   `mapstructure:"human_readable_output"  validate:""`
+	LogLevel              string `mapstructure:"log_level"              validate:"oneof=debug info warn error"`
+	ProductionEnvironment bool   `mapstructure:"production_environment" validate:""`
+	Port                  int    `mapstructure:"port"                   validate:"numeric,min=1,max=65535"`
 }
 
 type HasBaseConfig interface {
