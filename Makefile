@@ -5,19 +5,19 @@ all: test
 
 # Run tests
 test:
-	go test
+	go test . ./config/...
 
 # Run tests with verbose output
 test-verbose:
-	go test -v
+	go test -v . ./config/...
 
 # Run tests with coverage
 test-coverage:
-	go test -cover
+	go test -cover . ./config/... -coverprofile=coverage.out
 
 # Run tests with race detection
 test-race:
-	go test -race
+	go test -race . ./config/...
 
 # Run benchmarks
 bench:

@@ -1,79 +1,79 @@
 package shareddeps
 
 import (
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"github.com/go-playground/validator/v10"
-	"github.com/spf13/viper"
+	"github.com/EnclaveRunner/shareddeps/config"
+	"github.com/gin-gonic/gin"
 )
 
-var (
-	errLoadConfig    = "failed to load configuration"
-	errDecode        = "unable to decode into struct:"
-	errInvalidConfig = "config invalid:"
-)
-
-type BaseConfig struct {
-	HumanReadableOutput *bool  `mapstructure:"human_readable_output" validate:"required"`
-	LogLevel            string `mapstructure:"log_level"             validate:"required,oneof=debug info warn error"`
-	Port                string `mapstructure:"port"                  validate:"required,numeric,min=1,max=65535"`
+type Server struct {
+	config any
+	router *gin.Engine
 }
 
-func tryLoadFile(filename string, paths ...string) {
-	// Try to load from each path
-	for _, path := range paths {
-		configPath := filepath.Join(path, filename)
-		if _, err := os.Stat(configPath); err == nil {
-			// File exists, try to load it
-			viper.SetConfigFile(configPath)
-			if err := viper.MergeInConfig(); err == nil {
-				return // Successfully loaded
-			}
-		}
+// GetConfig is the main function for consumers to load and get their configuration.
+// It takes a pointer to any struct type that defines the configuration schema.
+// The struct should have appropriate mapstructure and validate tags.
+//
+// Example usage:
+//
+//	cfg, err := shareddeps.GetConfig(&MyConfig{})
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("Port: %s\n", cfg.Port)
+func InitConfig[T any](cfg *T) (*Server, error) {
+	if err := config.LoadAppConfig(cfg); err != nil {
+		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
-	// Try current directory if not in paths
-	if _, err := os.Stat(filename); err == nil {
-		viper.SetConfigFile(filename)
-		_ = viper.MergeInConfig() // Ignore error
+
+	router := gin.Default()
+
+	server := &Server{
+		config: cfg,
+		router: router,
+	}
+
+	return server, nil
+}
+
+// NewRoute registers a new route with the gin server.
+// It takes an HTTP method, endpoint path, and a gin.HandlerFunc callback.
+//
+// Example usage:
+//
+//	server.NewRoute("GET", "/health", func(c *gin.Context) {
+//	    c.JSON(200, gin.H{"status": "ok"})
+//	})
+func (s *Server) NewRoute(method, endpoint string, handler gin.HandlerFunc) {
+	switch method {
+	case "GET":
+		s.router.GET(endpoint, handler)
+	case "POST":
+		s.router.POST(endpoint, handler)
+	case "PUT":
+		s.router.PUT(endpoint, handler)
+	case "DELETE":
+		s.router.DELETE(endpoint, handler)
+	case "PATCH":
+		s.router.PATCH(endpoint, handler)
+	default:
+		// Default to GET if method is not recognized
+		s.router.GET(endpoint, handler)
 	}
 }
 
-var errConfigLoading = errors.New(errLoadConfig)
-
-func configLoadingError(reason string, err error) error {
-	return fmt.Errorf("%w: %s: %w", errConfigLoading, reason, err)
-}
-
-func LoadAppConfig[T any](config *T) error {
-	// Configure enclave config file
-	tryLoadFile("config.yaml", "/etc/enclave", "$HOME/.enclave", ".")
-	tryLoadFile("config.json", "/etc/enclave", "$HOME/.enclave", ".")
-	tryLoadFile("config.toml", "/etc/enclave", "$HOME/.enclave", ".")
-
-	tryLoadFile(".env", ".")
-
-	// Validate config
-	unmarshalErr := viper.Unmarshal(config)
-	if unmarshalErr != nil {
-		return configLoadingError(errDecode, unmarshalErr)
+// Start starts the gin server on the specified port.
+// If no port is provided, it defaults to ":8080".
+func (s *Server) Start(port ...string) error {
+	addr := ":8080"
+	if len(port) > 0 && port[0] != "" {
+		addr = port[0]
 	}
 
-	validationErr := validator.New().Struct(config)
-	if validationErr != nil {
-		var validationErrs validator.ValidationErrors
-		if errors.As(validationErr, &validationErrs) {
-			formattedErrs := make([]error, 0, len(validationErrs))
-			for _, err := range validationErrs {
-				formattedErrs = append(formattedErrs, err)
-			}
-
-			return configLoadingError(errInvalidConfig, errors.Join(formattedErrs...))
-		}
-
-		return configLoadingError(errInvalidConfig, validationErr)
+	if err := s.router.Run(addr); err != nil {
+		return fmt.Errorf("failed to start server on %s: %w", addr, err)
 	}
 
 	return nil
