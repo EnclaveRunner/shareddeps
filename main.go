@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
@@ -49,62 +47,11 @@ func configLoadingError(reason string, err error) error {
 	return fmt.Errorf("%w: %s: %w", errConfigLoading, reason, err)
 }
 
-// bindEnvironmentVariables automatically binds environment variables based on mapstructure tags
-func bindEnvironmentVariables[T any](config *T, envPrefix string) {
-	configType := reflect.TypeOf(config).Elem()
-	bindStructFields(configType, envPrefix)
-}
-
-// bindStructFields recursively binds struct fields to environment variables
-func bindStructFields(structType reflect.Type, envPrefix string) {
-	for i := range structType.NumField() {
-		field := structType.Field(i)
-
-		// Skip unexported fields
-		if !field.IsExported() {
-			continue
-		}
-
-		// Handle embedded structs
-		if field.Anonymous && field.Type.Kind() == reflect.Struct {
-			bindStructFields(field.Type, envPrefix)
-
-			continue
-		}
-
-		// Handle nested structs
-		if field.Type.Kind() == reflect.Struct {
-			bindStructFields(field.Type, envPrefix)
-
-			continue
-		}
-
-		// Get mapstructure tag
-		mapstructureTag := field.Tag.Get("mapstructure")
-		if mapstructureTag == "" || mapstructureTag == "-" {
-			continue
-		}
-
-		// Create environment variable name
-		envVarName := strings.ToUpper(envPrefix + "_" + mapstructureTag)
-
-		// Bind the environment variable
-		_ = viper.BindEnv(mapstructureTag, envVarName)
-	}
-}
-
 func LoadAppConfig[T any](config *T) error {
 	// Configure enclave config file
 	tryLoadFile("config.yaml", "/etc/enclave", "$HOME/.enclave", ".")
 	tryLoadFile("config.json", "/etc/enclave", "$HOME/.enclave", ".")
 	tryLoadFile("config.toml", "/etc/enclave", "$HOME/.enclave", ".")
-
-	// Configure environment variables
-	viper.SetEnvPrefix("ENCLAVE")
-	viper.AutomaticEnv()
-
-	// Automatically bind environment variables based on struct fields
-	bindEnvironmentVariables(config, "ENCLAVE")
 
 	tryLoadFile(".env", ".")
 

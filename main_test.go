@@ -1,6 +1,6 @@
-// with various struct patterns and environment variables
+// with various struct patterns
 //
-//nolint:errcheck,exhaustruct,gosec,intrange,paralleltest,varnamelen // Test configuration
+//nolint:exhaustruct,gosec,intrange,paralleltest,varnamelen // Test configuration
 package shareddeps
 
 import (
@@ -56,8 +56,6 @@ func TestLoadAppConfig(t *testing.T) {
 		name          string
 		setupConfig   func(t *testing.T) string // returns temp dir path
 		config        *BaseConfig
-		setupEnv      func()
-		cleanupEnv    func()
 		expectError   bool
 		errorContains string
 	}{
@@ -77,8 +75,6 @@ port: "8080"
 				return tmpDir
 			},
 			config:        &BaseConfig{},
-			setupEnv:      nil,
-			cleanupEnv:    nil,
 			expectError:   false,
 			errorContains: "",
 		},
@@ -98,8 +94,6 @@ port: "8080"
 				return tmpDir
 			},
 			config:        &BaseConfig{},
-			setupEnv:      nil,
-			cleanupEnv:    nil,
 			expectError:   false,
 			errorContains: "",
 		},
@@ -117,30 +111,10 @@ port = "3000"`
 				return tmpDir
 			},
 			config:        &BaseConfig{},
-			setupEnv:      nil,
-			cleanupEnv:    nil,
 			expectError:   false,
 			errorContains: "",
 		},
-		{
-			name: "valid config from environment variables",
-			setupConfig: func(t *testing.T) string {
-				return t.TempDir() // empty dir, no config files
-			},
-			config: &BaseConfig{},
-			setupEnv: func() {
-				_ = os.Setenv("ENCLAVE_HUMAN_READABLE_OUTPUT", "true")
-				_ = os.Setenv("ENCLAVE_LOG_LEVEL", "error")
-				_ = os.Setenv("ENCLAVE_PORT", "5000")
-			},
-			cleanupEnv: func() {
-				_ = os.Unsetenv("ENCLAVE_HUMAN_READABLE_OUTPUT")
-				_ = os.Unsetenv("ENCLAVE_LOG_LEVEL")
-				_ = os.Unsetenv("ENCLAVE_PORT")
-			},
-			expectError:   false,
-			errorContains: "",
-		},
+
 		{
 			name: "valid config from .env file",
 			setupConfig: func(t *testing.T) string {
@@ -218,16 +192,6 @@ log_level: info
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset viper instance for each test
 			viper.Reset()
-
-			// Setup environment if needed
-			if tt.setupEnv != nil {
-				tt.setupEnv()
-			}
-
-			// Cleanup environment if needed
-			if tt.cleanupEnv != nil {
-				defer tt.cleanupEnv()
-			}
 
 			// Setup config files
 			tmpDir := tt.setupConfig(t)
@@ -488,49 +452,7 @@ database:
 				assert.False(t, config.Database.SSL)
 			},
 		},
-		{
-			name: "environment variables with additional attributes",
-			setupConfig: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				// Create a minimal config file to satisfy required nested/array fields
-				configContent := `
-allowed_hosts: ["localhost"]
-features: ["auth"]
-database:
-  host: "localhost"
-  port: 5432
-  username: "envuser"
-  password: "envpass123"
-  name: "envdb"
-`
-				configPath := filepath.Join(tmpDir, "config.yaml")
-				err := os.WriteFile(configPath, []byte(configContent), 0o644)
-				require.NoError(t, err)
 
-				return tmpDir
-			},
-			expectError: false,
-			validateFunc: func(t *testing.T, config *ExtendedConfig) {
-				// Environment variables should override file values
-				assert.NotNil(t, config.HumanReadableOutput)
-				assert.True(t, *config.HumanReadableOutput)
-				assert.Equal(t, "error", config.LogLevel)
-				assert.Equal(t, "3000", config.Port)
-				assert.Equal(t, "redis://localhost:6379", config.DatabaseURL)
-				assert.Equal(t, "env-service", config.ServiceName)
-				assert.Equal(t, "production", config.Environment)
-				assert.Equal(t, 200, config.MaxConnections)
-				assert.Equal(t, 120, config.Timeout)
-				assert.Equal(t, 0, config.RetryAttempts)
-				assert.True(t, config.EnableMetrics)
-				assert.True(t, config.EnableTracing)
-				assert.False(t, config.Debug)
-				// File values for complex structures
-				assert.Equal(t, []string{"localhost"}, config.AllowedHosts)
-				assert.Equal(t, []string{"auth"}, config.Features)
-				assert.Equal(t, "localhost", config.Database.Host)
-			},
-		},
 		{
 			name: "invalid database URL validation",
 			setupConfig: func(t *testing.T) string {
@@ -631,37 +553,6 @@ database:
 			// Reset viper instance for each test
 			viper.Reset()
 
-			// Setup environment variables for the env test
-			if tt.name == "environment variables with additional attributes" {
-				os.Setenv("ENCLAVE_HUMAN_READABLE_OUTPUT", "true")
-				os.Setenv("ENCLAVE_LOG_LEVEL", "error")
-				os.Setenv("ENCLAVE_PORT", "3000")
-				os.Setenv("ENCLAVE_DATABASE_URL", "redis://localhost:6379")
-				os.Setenv("ENCLAVE_SERVICE_NAME", "env-service")
-				os.Setenv("ENCLAVE_ENVIRONMENT", "production")
-				os.Setenv("ENCLAVE_MAX_CONNECTIONS", "200")
-				os.Setenv("ENCLAVE_TIMEOUT", "120")
-				os.Setenv("ENCLAVE_RETRY_ATTEMPTS", "0")
-				os.Setenv("ENCLAVE_ENABLE_METRICS", "true")
-				os.Setenv("ENCLAVE_ENABLE_TRACING", "true")
-				os.Setenv("ENCLAVE_DEBUG", "false")
-
-				defer func() {
-					os.Unsetenv("ENCLAVE_HUMAN_READABLE_OUTPUT")
-					os.Unsetenv("ENCLAVE_LOG_LEVEL")
-					os.Unsetenv("ENCLAVE_PORT")
-					os.Unsetenv("ENCLAVE_DATABASE_URL")
-					os.Unsetenv("ENCLAVE_SERVICE_NAME")
-					os.Unsetenv("ENCLAVE_ENVIRONMENT")
-					os.Unsetenv("ENCLAVE_MAX_CONNECTIONS")
-					os.Unsetenv("ENCLAVE_TIMEOUT")
-					os.Unsetenv("ENCLAVE_RETRY_ATTEMPTS")
-					os.Unsetenv("ENCLAVE_ENABLE_METRICS")
-					os.Unsetenv("ENCLAVE_ENABLE_TRACING")
-					os.Unsetenv("ENCLAVE_DEBUG")
-				}()
-			}
-
 			// Setup config files
 			tmpDir := tt.setupConfig(t)
 
@@ -693,43 +584,6 @@ database:
 			}
 		})
 	}
-}
-
-// TestGenericEnvironmentBinding tests that the generic environment binding works for any struct
-func TestGenericEnvironmentBinding(t *testing.T) {
-	// Define a custom config struct
-	type CustomConfig struct {
-		AppName     string `mapstructure:"app_name"`
-		MaxRetries  int    `mapstructure:"max_retries"`
-		EnableDebug bool   `mapstructure:"enable_debug"`
-		ServerPort  string `mapstructure:"server_port"  validate:"required,numeric"`
-	}
-
-	// Reset viper
-	viper.Reset()
-
-	// Set custom environment variables
-	os.Setenv("ENCLAVE_APP_NAME", "test-app")
-	os.Setenv("ENCLAVE_MAX_RETRIES", "5")
-	os.Setenv("ENCLAVE_ENABLE_DEBUG", "true")
-	os.Setenv("ENCLAVE_SERVER_PORT", "9999")
-
-	defer func() {
-		os.Unsetenv("ENCLAVE_APP_NAME")
-		os.Unsetenv("ENCLAVE_MAX_RETRIES")
-		os.Unsetenv("ENCLAVE_ENABLE_DEBUG")
-		os.Unsetenv("ENCLAVE_SERVER_PORT")
-	}()
-
-	// Test the generic LoadAppConfig function
-	config := &CustomConfig{}
-	err := LoadAppConfig(config)
-
-	assert.NoError(t, err)
-	assert.Equal(t, "test-app", config.AppName)
-	assert.Equal(t, 5, config.MaxRetries)
-	assert.True(t, config.EnableDebug)
-	assert.Equal(t, "9999", config.ServerPort)
 }
 
 // TestMandatoryBaseConfigFields tests that BaseConfig fields are mandatory
