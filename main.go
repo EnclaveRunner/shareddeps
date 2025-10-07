@@ -3,19 +3,13 @@ package shareddeps
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"os"
+	"path/filepath"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
-)
-
-var (
-	errLoadConfig    = "failed to load config"
-	errDecode        = "unable to decode into struct:"
-	errInvalidConfig = "config invalid:"
 )
 
 type BaseConfig struct {
@@ -33,9 +27,10 @@ func (b *BaseConfig) GetBase() *BaseConfig {
 }
 
 func tryLoadFile(filename string, paths ...string) {
-	viper.SetConfigFile(filename)
 	for _, path := range paths {
-		configPath := filepath.Join(path, filename)
+		// Expand environment variables
+		expandedPath := os.ExpandEnv(path)
+		configPath := filepath.Join(expandedPath, filename)
 		if _, err := os.Stat(configPath); err == nil {
 			// File exists, try to load it
 			viper.SetConfigFile(configPath)
@@ -87,16 +82,19 @@ func LoadAppConfig[T HasBaseConfig](config T, serviceName, version string) error
 		return configLoadingError("Unable to decode into struct", unmarshalErr)
 	}
 
-	var validationErr *validator.ValidationErrors
-	errors.As(validator.New().Struct(config), &validationErr)
+	validationErr := validator.New().Struct(config)
+	if validationErr != nil {
+		var validationErrors validator.ValidationErrors
+		if errors.As(validationErr, &validationErrors) {
+			formattedErrs := make([]error, 0, len(validationErrors))
+			for _, err := range validationErrors {
+				formattedErrs = append(formattedErrs, err)
+			}
 
-	formattedErrs := make([]error, 0, len(*validationErr))
-	for _, err := range *validationErr {
-		formattedErrs = append(formattedErrs, err)
-	}
+			return configLoadingError("config invalid", errors.Join(formattedErrs...))
+		}
 
-	if len(*validationErr) > 0 {
-		return configLoadingError("Config invalid", errors.Join(formattedErrs...))
+		return configLoadingError("config invalid", validationErr)
 	}
 
 	// Set log level and human readable output
