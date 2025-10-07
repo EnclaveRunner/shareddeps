@@ -23,7 +23,6 @@ test-race:
 bench:
 	go test -bench=.
 
-# Run all tests (equivalent to test.sh)
 test-all: test-verbose test-coverage test-race bench
 
 # Format code
