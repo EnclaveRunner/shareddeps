@@ -10,8 +10,7 @@ import (
 )
 
 func Authz(adapter persist.Adapter) gin.HandlerFunc {
-	modelContent :=
-		`
+	modelContent := `
 		[request_definition]
 		r = sub, obj, act
 

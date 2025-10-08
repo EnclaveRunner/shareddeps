@@ -15,7 +15,11 @@ var Server *gin.Engine
 // GetConfig is the main function for consumers to load and get their configuration.
 // It takes a pointer to any struct type that defines the configuration schema.
 // The struct should have appropriate mapstructure and validate tags.
-func Init[T config.HasBaseConfig](cfg T, serviceName, version string, policyAdapter persist.Adapter) {
+func Init[T config.HasBaseConfig](
+	cfg T,
+	serviceName, version string,
+	policyAdapter persist.Adapter,
+) {
 	err := config.LoadAppConfig(cfg, serviceName, version)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to load configuration")
