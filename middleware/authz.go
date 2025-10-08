@@ -25,7 +25,7 @@ func Authz(adapter persist.Adapter) gin.HandlerFunc {
 		e = some(where (p.eft == allow))
 
 		[matchers]
-		m = ug(r.sub, p.sub) && rg(r.obj, p.obj) && r.act == p.act
+		m = ug(r.sub, p.sub) && rg(r.obj, p.obj) && (r.act == p.act || p.act == "*")
 		`
 
 	m, err := model.NewModelFromString(modelContent)
