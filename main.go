@@ -1,75 +1,48 @@
 package shareddeps
 
 import (
-	"errors"
 	"fmt"
 
-	"github.com/go-playground/validator/v10"
-	"github.com/spf13/viper"
+	"github.com/EnclaveRunner/shareddeps/config"
+	"github.com/EnclaveRunner/shareddeps/middleware"
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
-var (
-	errLoadConfigFile = "failed to load config file:"
-	errLoadConfig     = "failed to load configuration"
-	errDecode         = "unable to decode into struct:"
-	errInvalidConfig  = "config invalid:"
-)
+var Server *gin.Engine
 
-type BaseConfig struct {
-	HumanReadableOutput bool   `mapstructure:"human_readable_output" validate:"required"`
-	LogLevel            string `mapstructure:"log_level"             validate:"required,oneof=debug info warn error"`
-	Port                string `mapstructure:"port"                  validate:"required,port"`
+// GetConfig is the main function for consumers to load and get their configuration.
+// It takes a pointer to any struct type that defines the configuration schema.
+// The struct should have appropriate mapstructure and validate tags.
+func Init[T config.HasBaseConfig](cfg T, serviceName, version string) {
+	err := config.LoadAppConfig(cfg, serviceName, version)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load configuration")
+	}
+
+	if config.Cfg.ProductionEnvironment {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	Server = gin.New()
+
+	// Add recovery middleware
+	Server.Use(gin.Recovery())
+
+	// Add our custom zerolog middleware
+	Server.Use(middleware.Zerolog())
+
+	log.Info().
+		Str("service", serviceName).
+		Str("version", version).
+		Msg("Server initialized with zerolog middleware")
 }
 
-func tryLoadFile(filename string, paths ...string) {
-	viper.SetConfigFile(filename)
-	for _, path := range paths {
-		viper.AddConfigPath(path)
+// Start starts the gin server on the specified port.
+// If no port is provided, it defaults to ":8080".
+func Start() {
+	addr := fmt.Sprintf(":%d", config.Cfg.Port)
+	if err := Server.Run(addr); err != nil {
+		log.Fatal().Err(err).Msgf("Failed to start server on %s", addr)
 	}
-
-	err := viper.MergeInConfig()
-	var fileNotFoundError *viper.ConfigFileNotFoundError
-	if err != nil && errors.As(err, fileNotFoundError) {
-		fmt.Println(
-			fmt.Errorf("%s %w", errLoadConfigFile, err),
-		)
-	}
-}
-
-var errConfigLoading = errors.New(errLoadConfig)
-
-func configLoadingError(reason string, err error) error {
-	return fmt.Errorf("%w: %s: %w", errConfigLoading, reason, err)
-}
-
-func LoadAppConfig(config BaseConfig) error {
-	// Configure enclave config file
-	tryLoadFile("config.yaml", "/etc/enclave", "$HOME/.enclave", ".")
-	tryLoadFile("config.json", "/etc/enclave", "$HOME/.enclave", ".")
-	tryLoadFile("config.toml", "/etc/enclave", "$HOME/.enclave", ".")
-
-	// Configure environment variables
-	viper.SetEnvPrefix("ENCLAVE")
-	viper.AutomaticEnv()
-	tryLoadFile(".env", ".")
-
-	// Validate config
-	unmarshalErr := viper.Unmarshal(config)
-	if unmarshalErr != nil {
-		return configLoadingError(errDecode, unmarshalErr)
-	}
-
-	var validationErr *validator.ValidationErrors
-	errors.As(validator.New().Struct(config), &validationErr)
-
-	formattedErrs := make([]error, 0, len(*validationErr))
-	for _, err := range *validationErr {
-		formattedErrs = append(formattedErrs, err)
-	}
-
-	if len(*validationErr) > 0 {
-		return configLoadingError(errInvalidConfig, errors.Join(formattedErrs...))
-	}
-
-	return nil
 }
