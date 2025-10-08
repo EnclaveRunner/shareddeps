@@ -11,10 +11,6 @@ import (
 
 // ZerologMiddleware returns a gin middleware that logs HTTP requests using zerolog.
 // It logs the HTTP method, path, client IP, status code, latency, and other request details.
-// The log level is determined by the HTTP status code:
-//   - 4xx and 5xx status codes: Error level
-//   - 3xx status codes: Warn level
-//   - 2xx and other status codes: Info level
 func Zerolog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -44,8 +40,6 @@ func Zerolog() gin.HandlerFunc {
 		var logEvent *zerolog.Event
 		switch {
 		case param.StatusCode >= http.StatusBadRequest:
-			logEvent = log.Error()
-		case param.StatusCode >= http.StatusMultipleChoices:
 			logEvent = log.Warn()
 		default:
 			logEvent = log.Info()
