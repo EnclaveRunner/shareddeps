@@ -57,8 +57,11 @@ func Init[T config.HasBaseConfig](
 		Msg("Server initialized with middleware")
 }
 
-// Start starts the gin server on the specified port.
-// If no port is provided, it defaults to ":8080".
+// @title			SharedDeps Server
+// @version			v0.0.0
+// @description	API Abstraction of common web-server duties.
+// @license.name	GNU General Public License v3.0
+// @license.url	https://www.gnu.org/licenses/gpl-3.0.html
 func Start() {
 	addr := fmt.Sprintf(":%d", config.Cfg.Port)
 	if err := Server.Run(addr); err != nil {
