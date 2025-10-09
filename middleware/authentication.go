@@ -1,21 +1,42 @@
 package middleware
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
 
 const (
 	UnauthenticatedUser = "__unauthenticated__"
 )
 
-func Authentication() gin.HandlerFunc {
+type BasicAuthenticator func(username, password string) bool
+
+func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, _, ok := c.Request.BasicAuth()
-		if ok {
-			// Authorize using basic auth
+		username, password, hasBasicAuth := c.Request.BasicAuth()
+
+		authenticatedUser := ""
+		authorizationFailed := false
+		if hasBasicAuth {
+			// BasicAuth provided, validate it
+			if basicAuthAuthenticator(username, password) {
+				authenticatedUser = username
+			} else {
+				authorizationFailed = true
+			}
 		} else {
 			// No auhthorization provided continue as anonymous user
-			c.Request.SetBasicAuth(UnauthenticatedUser, "")
+			authenticatedUser = UnauthenticatedUser
 		}
 
-		c.Next()
+		c.Request.SetBasicAuth(authenticatedUser, "")
+
+		if authorizationFailed {
+			// Authentication failed. Return 401 and abort the request.
+			c.AbortWithStatus(http.StatusUnauthorized)
+		} else {
+			c.Next()
+		}
 	}
 }
