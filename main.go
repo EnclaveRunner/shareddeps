@@ -41,7 +41,6 @@ func Init[T config.HasBaseConfig](
 
 	// Add our custom zerolog middleware
 	Server.Use(middleware.Zerolog())
-	Server.Use(middleware.Authz(policyAdapter))
 
 	if authentication != nil && policyAdapter != nil {
 		Server.Use(middleware.Authentication(authentication.BasicAuthenticator))
@@ -54,8 +53,7 @@ func Init[T config.HasBaseConfig](
 	}
 
 	log.Info().
-		Str("service", serviceName).
-		Str("version", version).
+		Int("port", cfg.GetBase().Port).
 		Msg("Server initialized with middleware")
 }
 
