@@ -8,6 +8,7 @@ import (
 	"github.com/casbin/casbin/v2/persist"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
 
 var Server *gin.Engine
@@ -35,6 +36,13 @@ func Init[T config.HasBaseConfig](
 	}
 
 	Server = gin.New()
+
+	// Setup metrics collection for prometheus
+	p := ginprometheus.NewWithConfig(ginprometheus.Config{
+		Subsystem: "gin",
+	})
+
+	p.Use(Server)
 
 	// Add recovery middleware
 	Server.Use(gin.Recovery())
