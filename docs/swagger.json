@@ -1,7 +1,14 @@
 {
     "swagger": "2.0",
     "info": {
-        "contact": {}
+        "description": "API Abstraction of common web-server duties.",
+        "title": "SharedDeps Server",
+        "contact": {},
+        "license": {
+            "name": "GNU General Public License v3.0",
+            "url": "https://www.gnu.org/licenses/gpl-3.0.html"
+        },
+        "version": "v0.0.0"
     },
     "paths": {}
 }
