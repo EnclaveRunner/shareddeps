@@ -1,4 +1,6 @@
+# Setup
+
 - Viper for configuration
-- Zap for logging
+- Zerolog for logging
 - Gin Gonic for HTTP server
 - go-playground/validator for validation
