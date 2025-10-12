@@ -59,7 +59,7 @@ func Init[T config.HasBaseConfig](
 
 // @title			SharedDeps Server
 // @version			v0.0.0
-// @description	API Abstraction of common web-server duties.
+// @description	API Abstraction of common web-server duties providing re-use capabilities.
 // @license.name	GNU General Public License v3.0
 // @license.url	https://www.gnu.org/licenses/gpl-3.0.html
 func Start() {
