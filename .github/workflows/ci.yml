@@ -21,7 +21,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.24"
 
       - name: Download dependencies
         run: go mod download
@@ -41,7 +41,7 @@ jobs:
         run: |
           if [ "$(git status --porcelain)" != "" ]; then
             git add .
-            git commit -m "Update OpenAPI docs [skip ci]"
+            git commit -m "Update OpenAPI docs"
             git push origin HEAD:${{ github.head_ref }}
           fi
         env:
