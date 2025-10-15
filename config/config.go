@@ -73,6 +73,7 @@ func LoadAppConfig[T HasBaseConfig](config T, serviceName, version string) error
 	viper.SetDefault("log_level", "info")
 	//nolint:mnd // Default port for HTTP
 	viper.SetDefault("port", 80)
+	viper.SetDefault("production_environment", true)
 
 	// Configure enclave config file
 	tryLoadFile("config.yaml", "/etc/enclave", "$HOME/.enclave", ".")

@@ -19,11 +19,10 @@ type Authentication struct {
 // GetConfig is the main function for consumers to load and get their configuration.
 // It takes a pointer to any struct type that defines the configuration schema.
 // The struct should have appropriate mapstructure and validate tags.
+// Must be called before Init.
 func Init[T config.HasBaseConfig](
 	cfg T,
 	serviceName, version string,
-	policyAdapter persist.Adapter,
-	authentication *Authentication,
 ) {
 	err := config.LoadAppConfig(cfg, serviceName, version)
 	if err != nil {
@@ -42,19 +41,16 @@ func Init[T config.HasBaseConfig](
 	// Add our custom zerolog middleware
 	Server.Use(middleware.Zerolog())
 
-	if authentication != nil && policyAdapter != nil {
-		Server.Use(middleware.Authentication(authentication.BasicAuthenticator))
-		Server.Use(middleware.Authz(policyAdapter))
-	}
-
-	if (authentication != nil && policyAdapter == nil) ||
-		(authentication == nil && policyAdapter != nil) {
-		log.Fatal().Msg("Both authentication and policyAdapter must be provided together or neither")
-	}
-
 	log.Info().
 		Int("port", cfg.GetBase().Port).
 		Msg("Server initialized with middleware")
+}
+
+// AddAuth adds authentication and authorization middleware to the server.
+// Must be called after Init and before Start.
+func AddAuth(policyAdapter persist.Adapter, authentication Authentication) {
+	Server.Use(middleware.Authentication(authentication.BasicAuthenticator))
+	Server.Use(middleware.Authz(policyAdapter))
 }
 
 // @title			SharedDeps Server
