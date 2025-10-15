@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func Authz(adapter persist.Adapter) gin.HandlerFunc {
+func Authz(adapter persist.Adapter, defaultPolicies [][]string) gin.HandlerFunc {
 	modelContent := `
 		[request_definition]
 		r = sub, obj, act
@@ -36,6 +36,21 @@ func Authz(adapter persist.Adapter) gin.HandlerFunc {
 	enforcer, err := casbin.NewEnforcer(m, adapter)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create enforcer")
+	}
+
+	policies, err := enforcer.GetPolicy()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get existing policies")
+	}
+
+	if len(policies) == 0 && len(defaultPolicies) > 0 {
+		// No existing policies, load default policies
+		_, err = enforcer.AddPolicies(defaultPolicies)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to add default policies")
+		} else {
+			log.Info().Msg("No plicies found. Added default policies")
+		}
 	}
 
 	return authz.NewAuthorizer(enforcer)

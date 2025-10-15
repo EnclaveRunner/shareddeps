@@ -48,9 +48,13 @@ func Init[T config.HasBaseConfig](
 
 // AddAuth adds authentication and authorization middleware to the server.
 // Must be called after Init and before Start.
-func AddAuth(policyAdapter persist.Adapter, authentication Authentication) {
+func AddAuth(
+	policyAdapter persist.Adapter,
+	defaultPolicies [][]string,
+	authentication Authentication,
+) {
 	Server.Use(middleware.Authentication(authentication.BasicAuthenticator))
-	Server.Use(middleware.Authz(policyAdapter))
+	Server.Use(middleware.Authz(policyAdapter, defaultPolicies))
 }
 
 // @title			SharedDeps Server
