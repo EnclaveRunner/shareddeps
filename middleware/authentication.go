@@ -10,7 +10,7 @@ const (
 	UnauthenticatedUser = "__unauthenticated__"
 )
 
-type BasicAuthenticator func(username, password string) bool
+type BasicAuthenticator func(username, password string) (string, error)
 
 func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -20,13 +20,15 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 		authorizationFailed := false
 		if hasBasicAuth {
 			// BasicAuth provided, validate it
-			if basicAuthAuthenticator(username, password) {
-				authenticatedUser = username
+			userID, err := basicAuthAuthenticator(username, password)
+
+			if err == nil {
+				authenticatedUser = userID
 			} else {
 				authorizationFailed = true
 			}
 		} else {
-			// No auhthorization provided continue as anonymous user
+			// No authorization provided continue as anonymous user
 			authenticatedUser = UnauthenticatedUser
 		}
 
