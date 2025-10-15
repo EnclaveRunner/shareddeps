@@ -50,11 +50,11 @@ func Init[T config.HasBaseConfig](
 // Must be called after Init and before Start.
 func AddAuth(
 	policyAdapter persist.Adapter,
-	defaultPolicies [][]string,
+	defaultPolicies, defaultGroups [][]string,
 	authentication Authentication,
 ) {
 	Server.Use(middleware.Authentication(authentication.BasicAuthenticator))
-	Server.Use(middleware.Authz(policyAdapter, defaultPolicies))
+	Server.Use(middleware.Authz(policyAdapter, defaultPolicies, defaultGroups))
 }
 
 // @title			SharedDeps Server

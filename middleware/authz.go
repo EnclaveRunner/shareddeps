@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func Authz(adapter persist.Adapter, defaultPolicies [][]string) gin.HandlerFunc {
+func Authz(adapter persist.Adapter, defaultPolicies, defaultGroups [][]string) gin.HandlerFunc {
 	modelContent := `
 		[request_definition]
 		r = sub, obj, act
@@ -50,6 +50,21 @@ func Authz(adapter persist.Adapter, defaultPolicies [][]string) gin.HandlerFunc 
 			log.Fatal().Err(err).Msg("Failed to add default policies")
 		} else {
 			log.Info().Msg("No plicies found. Added default policies")
+		}
+	}
+
+	groups, err := enforcer.GetGroupingPolicy()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get existing groups")
+	}
+
+	if len(groups) == 0 && len(defaultGroups) > 0 {
+		// No existing groups, load default groups
+		_, err = enforcer.AddGroupingPolicies(defaultGroups)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to add default groups")
+		} else {
+			log.Info().Msg("No groups found. Added default groups")
 		}
 	}
 
