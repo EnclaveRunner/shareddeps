@@ -172,9 +172,14 @@ func (gm *groupManager[T]) AddToGroup(entityName string, groupName ...string) er
 		}
 	}
 
+	groupingPolicies := make([][]string, len(groupName))
+	for i, group := range groupName {
+		groupingPolicies[i] = []string{entityName, group}
+	}
+
 	_, err := enforcer.AddNamedGroupingPolicies(
 		string(gm.groupType),
-		[][]string{append([]string{entityName}, groupName...)},
+		groupingPolicies,
 	)
 	if err != nil {
 		return makeErrCasbinConnection("AddToGroup", err)

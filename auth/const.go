@@ -14,6 +14,7 @@ const (
 var errCasbinConnection = errors.New("casbin returned an error during action")
 
 func makeErrCasbinConnection(action string, casbinErr error) error {
+	//nolint:errorlint // casbin error is not wrapped in favor of errCasbinConnection
 	return fmt.Errorf("%w \"%s\", casbin error: %v", errCasbinConnection, action, casbinErr)
 }
 
