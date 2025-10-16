@@ -1,4 +1,4 @@
-//nolint:paralleltest // Tests are not run in parallel due to global enforcer
+//nolint:paralleltest,dupl,gosec // Tests are not run in parallel due to global enforcer
 package auth
 
 import (
@@ -19,9 +19,11 @@ func setupTestAdapter(t *testing.T) *fileadapter.Adapter {
 	// Create the file to avoid "no such file" error
 	file, err := os.Create(tempFile)
 	require.NoError(t, err)
-	file.Close()
+	err = file.Close()
+	require.NoError(t, err)
 
 	adapter := fileadapter.NewAdapter(tempFile)
+
 	return adapter
 }
 
@@ -45,6 +47,7 @@ func TestInitAuth(t *testing.T) {
 	for _, policy := range policies {
 		if len(policy) >= 3 && policy[0] == enclaveAdminGroup && policy[1] == "*" && policy[2] == "*" {
 			foundAdminPolicy = true
+
 			break
 		}
 	}
@@ -58,6 +61,7 @@ func TestInitAuth(t *testing.T) {
 	for _, group := range userGroups {
 		if len(group) >= 2 && group[0] == nullUser && group[1] == enclaveAdminGroup {
 			foundAdminGroup = true
+
 			break
 		}
 	}
@@ -738,8 +742,7 @@ func BenchmarkInitAuth(b *testing.B) {
 	tempDir := b.TempDir()
 	tempFile := filepath.Join(tempDir, "bench_policy.csv")
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		adapter := fileadapter.NewAdapter(tempFile)
 		InitAuth(adapter)
 	}
@@ -752,16 +755,19 @@ func BenchmarkAddUserToGroup(b *testing.B) {
 	// Create the file
 	file, err := os.Create(tempFile)
 	require.NoError(b, err)
-	file.Close()
+	err = file.Close()
+	require.NoError(b, err)
 
 	adapter := fileadapter.NewAdapter(tempFile)
 	InitAuth(adapter)
-	CreateUserGroup("benchGroup")
+	err = CreateUserGroup("benchGroup")
+	require.NoError(b, err)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		AddUserToGroup("benchUser", "benchGroup")
-		RemoveUser("benchUser")
+	for b.Loop() {
+		err = AddUserToGroup("benchUser", "benchGroup")
+		require.NoError(b, err)
+		err = RemoveUser("benchUser")
+		require.NoError(b, err)
 	}
 }
 
@@ -772,16 +778,20 @@ func BenchmarkAddPolicy(b *testing.B) {
 	// Create the file
 	file, err := os.Create(tempFile)
 	require.NoError(b, err)
-	file.Close()
+	err = file.Close()
+	require.NoError(b, err)
 
 	adapter := fileadapter.NewAdapter(tempFile)
 	InitAuth(adapter)
-	CreateUserGroup("benchUserGroup")
-	CreateResourceGroup("benchResourceGroup")
+	err = CreateUserGroup("benchUserGroup")
+	require.NoError(b, err)
+	err = CreateResourceGroup("benchResourceGroup")
+	require.NoError(b, err)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		AddPolicy("benchUserGroup", "benchResourceGroup", "GET")
-		RemovePolicy("benchUserGroup", "benchResourceGroup", "GET")
+	for b.Loop() {
+		err = AddPolicy("benchUserGroup", "benchResourceGroup", "GET")
+		require.NoError(b, err)
+		err = RemovePolicy("benchUserGroup", "benchResourceGroup", "GET")
+		require.NoError(b, err)
 	}
 }
