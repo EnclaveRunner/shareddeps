@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -19,6 +20,7 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 		authenticatedUser := ""
 		authorizationFailed := false
 		if hasBasicAuth {
+			log.Debug().Str("user", username).Msg("Authenticating user with BasicAuth")
 			// BasicAuth provided, validate it
 			userID, err := basicAuthAuthenticator(username, password)
 
@@ -29,10 +31,21 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 			}
 		} else {
 			// No authorization provided continue as anonymous user
+			log.Debug().Msg("No authentication provided. Proceeding as unauthenticated user")
 			authenticatedUser = UnauthenticatedUser
 		}
 
 		c.Request.SetBasicAuth(authenticatedUser, "")
+
+		user, _, _ := c.Request.BasicAuth()
+		method := c.Request.Method
+		path := c.Request.URL.Path
+
+		log.Debug().
+			Str("user", user).
+			Str("method", method).
+			Str("path", path).
+			Msg("Authentication middleware processed request")
 
 		if authorizationFailed {
 			// Authentication failed. Return 401 and abort the request.
