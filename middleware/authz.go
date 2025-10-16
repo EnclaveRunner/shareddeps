@@ -9,7 +9,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func Authz(adapter persist.Adapter, defaultPolicies, defaultGroups [][]string) gin.HandlerFunc {
+func Authz(
+	adapter persist.Adapter,
+	defaultPolicies, defaultUserGroups, defaultRessourceGroups [][]string,
+) gin.HandlerFunc {
 	modelContent := `
 		[request_definition]
 		r = sub, obj, act
@@ -18,15 +21,15 @@ func Authz(adapter persist.Adapter, defaultPolicies, defaultGroups [][]string) g
 		p = sub, obj, act
 
 		[role_definition]
-		ug = _, _
-		rg = _, _
+		g = _, _
+		g2 = _, _
 
 		[policy_effect]
 		e = some(where (p.eft == allow))
 
 		[matchers]
-		m = ug(r.sub, p.sub) && rg(r.obj, p.obj) && (r.act == p.act || p.act == "*")
-		`
+		m = g(r.sub, p.sub) && g2(r.obj, p.obj) && (r.act == p.act || p.act == "*")
+	`
 
 	m, err := model.NewModelFromString(modelContent)
 	if err != nil {
@@ -53,20 +56,55 @@ func Authz(adapter persist.Adapter, defaultPolicies, defaultGroups [][]string) g
 		}
 	}
 
-	groups, err := enforcer.GetGroupingPolicy()
+	userGroups, err := enforcer.GetNamedGroupingPolicy("g")
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to get existing groups")
+		log.Error().Err(err).Msg("Failed to get existing user groups")
 	}
 
-	if len(groups) == 0 && len(defaultGroups) > 0 {
+	if len(userGroups) == 0 && len(defaultUserGroups) > 0 {
 		// No existing groups, load default groups
-		_, err = enforcer.AddGroupingPolicies(defaultGroups)
+		_, err = enforcer.AddNamedGroupingPolicies("g", defaultUserGroups)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to add default groups")
+			log.Fatal().Err(err).Msg("Failed to add default user groups")
 		} else {
-			log.Info().Msg("No groups found. Added default groups")
+			log.Info().Msg("No groups found. Added default user groups")
 		}
 	}
+
+	ressourceGroups, err := enforcer.GetNamedGroupingPolicy("g2")
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get existing ressource groups")
+	}
+
+	if len(ressourceGroups) == 0 && len(defaultRessourceGroups) > 0 {
+		// No existing groups, load default groups
+		_, err = enforcer.AddNamedGroupingPolicies("g2", defaultRessourceGroups)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to add default ressource groups")
+		} else {
+			log.Info().Msg("No groups found. Added default ressource groups")
+		}
+	}
+
+	err = enforcer.LoadPolicy()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load policies")
+	}
+
+	enforcer.EnableLog(true)
+
+	rule, _ := enforcer.GetFilteredNamedGroupingPolicy("g", 0, "__unauthenticated__")
+	for _, r := range rule {
+		log.Debug().Strs("rule", r).Msg("__unauthenticated__ grouping policy")
+	}
+
+	rule, _ = enforcer.GetFilteredNamedGroupingPolicy("g2", 0, "/ready")
+	for _, r := range rule {
+		log.Debug().Strs("rule", r).Msg("/ready grouping policy")
+	}
+
+	result, _ := enforcer.Enforce("__unauthenticated__", "/ready", "GET")
+	log.Debug().Bool("unauthenticated_ready", result).Msg("Unauthenticated access to /ready")
 
 	return authz.NewAuthorizer(enforcer)
 }
