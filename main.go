@@ -3,6 +3,7 @@ package shareddeps
 import (
 	"fmt"
 
+	"github.com/EnclaveRunner/shareddeps/auth"
 	"github.com/EnclaveRunner/shareddeps/config"
 	"github.com/EnclaveRunner/shareddeps/middleware"
 	"github.com/casbin/casbin/v2/persist"
@@ -50,18 +51,11 @@ func Init[T config.HasBaseConfig](
 // Must be called after Init and before Start.
 func AddAuth(
 	policyAdapter persist.Adapter,
-	defaultPolicies, defaultUserGroups, defaultRessourceGroups [][]string,
 	authentication Authentication,
 ) {
+	enforcer := auth.InitAuth(policyAdapter)
 	Server.Use(middleware.Authentication(authentication.BasicAuthenticator))
-	Server.Use(
-		middleware.Authz(
-			policyAdapter,
-			defaultPolicies,
-			defaultUserGroups,
-			defaultRessourceGroups,
-		),
-	)
+	Server.Use(middleware.Authz(enforcer))
 }
 
 // @title			SharedDeps Server
