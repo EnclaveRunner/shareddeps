@@ -211,9 +211,14 @@ func (gm *groupManager[T]) RemoveFromGroup(entityName string, groupName ...strin
 		}
 	}
 
+	groupingPolicies := make([][]string, len(groupName))
+	for i, group := range groupName {
+		groupingPolicies[i] = []string{entityName, group}
+	}
+
 	_, err := enforcer.RemoveNamedGroupingPolicies(
 		string(gm.groupType),
-		[][]string{append([]string{entityName}, groupName...)},
+		groupingPolicies,
 	)
 	if err != nil {
 		return makeErrCasbinConnection("RemoveFromGroup", err)

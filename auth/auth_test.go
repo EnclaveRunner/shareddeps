@@ -238,6 +238,12 @@ func TestRemoveUserFromGroup(t *testing.T) {
 	// Create test group and add user
 	err := CreateUserGroup("testGroup")
 	require.NoError(t, err)
+	err = CreateUserGroup("testGroup1")
+	require.NoError(t, err)
+	err = CreateUserGroup("testGroup2")
+	require.NoError(t, err)
+	err = CreateUserGroup("testGroup3")
+	require.NoError(t, err)
 	err = AddUserToGroup("testUser", "testGroup")
 	require.NoError(t, err)
 
@@ -267,6 +273,12 @@ func TestRemoveUserFromGroup(t *testing.T) {
 			groupNames: []string{"testGroup"},
 			wantErr:    true,
 			errType:    errNullUser,
+		},
+		{
+			name:       "remove user from multiple groups",
+			userName:   "testUser",
+			groupNames: []string{"testGroup1", "testGroup2", "testGroup3"},
+			wantErr:    false,
 		},
 	}
 
