@@ -28,7 +28,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "",
 	Schemes:          []string{},
 	Title:            "SharedDeps Server",
-	Description:      "API Abstraction of common web-server duties providing re-use capabilities.",
+	Description:      "API Abstraction of common web-server duties providing re-use",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
