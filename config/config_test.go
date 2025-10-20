@@ -161,7 +161,11 @@ database:
 				assert.True(t, config.HumanReadableOutput)
 				assert.Equal(t, "info", config.LogLevel)
 				assert.Equal(t, 8080, config.Port)
-				assert.Equal(t, "postgres://user:pass@localhost:5432/mydb", config.DatabaseURL)
+				assert.Equal(
+					t,
+					"postgres://user:pass@localhost:5432/mydb",
+					config.DatabaseURL,
+				)
 				assert.Equal(t, "test-service", config.ServiceName)
 				assert.Equal(t, "development", config.Environment)
 				assert.Equal(t, 100, config.MaxConnections)
@@ -170,7 +174,11 @@ database:
 				assert.True(t, config.EnableMetrics)
 				assert.False(t, config.EnableTracing)
 				assert.True(t, config.Debug)
-				assert.Equal(t, []string{"localhost", "127.0.0.1", "test.example.com"}, config.AllowedHosts)
+				assert.Equal(
+					t,
+					[]string{"localhost", "127.0.0.1", "test.example.com"},
+					config.AllowedHosts,
+				)
 				assert.Equal(t, []string{"auth", "logging", "metrics"}, config.Features)
 				assert.Equal(t, "localhost", config.Database.Host)
 				assert.Equal(t, 5432, config.Database.Port)
@@ -220,7 +228,11 @@ database:
 				assert.False(t, config.HumanReadableOutput)
 				assert.Equal(t, "debug", config.LogLevel)
 				assert.Equal(t, 9090, config.Port)
-				assert.Equal(t, "mysql://user:pass@localhost:3306/mydb", config.DatabaseURL)
+				assert.Equal(
+					t,
+					"mysql://user:pass@localhost:3306/mydb",
+					config.DatabaseURL,
+				)
 				assert.Equal(t, "json-service", config.ServiceName)
 				assert.Equal(t, "staging", config.Environment)
 				assert.Equal(t, 50, config.MaxConnections)
@@ -229,7 +241,11 @@ database:
 				assert.False(t, config.EnableMetrics)
 				assert.True(t, config.EnableTracing)
 				assert.False(t, config.Debug)
-				assert.Equal(t, []string{"api.example.com", "staging.example.com"}, config.AllowedHosts)
+				assert.Equal(
+					t,
+					[]string{"api.example.com", "staging.example.com"},
+					config.AllowedHosts,
+				)
 				assert.Equal(t, []string{"tracing", "logging"}, config.Features)
 				assert.Equal(t, "db.staging.com", config.Database.Host)
 				assert.Equal(t, 3306, config.Database.Port)

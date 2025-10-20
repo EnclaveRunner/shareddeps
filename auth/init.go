@@ -11,8 +11,9 @@ import (
 
 var enforcer *casbin.Enforcer
 
-// InitAuth initializes the casbin enforcer with the provided adapter and sets up default policies.
-// It creates the casbin model, loads policies, and ensures the enclaveAdmin group and policy exist.
+// InitAuth initializes the casbin enforcer with the provided adapter and sets
+// up default policies. It creates the casbin model, loads policies, and ensures
+// the enclaveAdmin group and policy exist.
 func InitAuth(adapter persist.Adapter) *casbin.Enforcer {
 	modelContent := `
 		[request_definition]
@@ -55,7 +56,8 @@ func InitAuth(adapter persist.Adapter) *casbin.Enforcer {
 	containsAdminPolicy := slices.IndexFunc(
 		policies,
 		func(policy []string) bool {
-			return policy[0] == enclaveAdminGroup && policy[1] == "*" && policy[2] == "*"
+			return policy[0] == enclaveAdminGroup && policy[1] == "*" &&
+				policy[2] == "*"
 		},
 	) != -1
 
@@ -82,7 +84,9 @@ func InitAuth(adapter persist.Adapter) *casbin.Enforcer {
 	if !containsAdminGroup {
 		_, err = enforcer.AddNamedGroupingPolicy("g", nullUser, enclaveAdminGroup)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to add admin to enclaveAdmin casbin group")
+			log.Fatal().
+				Err(err).
+				Msg("Failed to add admin to enclaveAdmin casbin group")
 		}
 	}
 
