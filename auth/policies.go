@@ -1,5 +1,11 @@
 package auth
 
+type Policy struct {
+	UserGroup     string
+	ResourceGroup string
+	Permission    string
+}
+
 // AddPolicy adds a policy to the enforcer if it does not already exist.
 //
 // It checks if the user group and resource group exist before adding the policy
@@ -46,6 +52,25 @@ func AddPolicy(userGroup, resourceGroup, method string) error {
 	}
 
 	return nil
+}
+
+func ListPolicies() ([]Policy, error) {
+	rawPolicies, err := enforcer.GetPolicy()
+	if err != nil {
+		return nil, &CasbinError{"GetPolicy", err}
+	}
+
+	policies := make([]Policy, 0, len(rawPolicies))
+	for _, rawPolicy := range rawPolicies {
+		policy := Policy{
+			UserGroup:     rawPolicy[0],
+			ResourceGroup: rawPolicy[1],
+			Permission:    rawPolicy[2],
+		}
+		policies = append(policies, policy)
+	}
+
+	return policies, nil
 }
 
 // RemovePolicy removes a policy from the enforcer.

@@ -1,17 +1,15 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 
+	"github.com/EnclaveRunner/shareddeps/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	UnauthenticatedUser = "__unauthenticated__"
-)
-
-type BasicAuthenticator func(username, password string) (string, error)
+type BasicAuthenticator func(ctx context.Context, username, password string) (string, error)
 
 func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -24,7 +22,7 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 				Str("user", username).
 				Msg("Authenticating user with BasicAuth")
 			// BasicAuth provided, validate it
-			userID, err := basicAuthAuthenticator(username, password)
+			userID, err := basicAuthAuthenticator(c.Request.Context(), username, password)
 
 			if err == nil {
 				authenticatedUser = userID
@@ -34,10 +32,17 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 		} else {
 			// No authorization provided continue as anonymous user
 			log.Debug().Msg("No authentication provided. Proceeding as unauthenticated user")
-			authenticatedUser = UnauthenticatedUser
+			authenticatedUser = auth.UnauthenticatedUser
 		}
 
 		c.Request.SetBasicAuth(authenticatedUser, "")
+		c.Request = c.Request.WithContext(
+			context.WithValue(
+				c.Request.Context(),
+				auth.AuthenticatedUser,
+				authenticatedUser,
+			),
+		)
 
 		user, _, _ := c.Request.BasicAuth()
 		method := c.Request.Method
