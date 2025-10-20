@@ -39,5 +39,5 @@ type ConflictError struct {
 }
 
 func (e *ConflictError) Error() string {
-	return fmt.Sprintf("conflict: %s", e.Reason)
+	return "conflict: " + e.Reason
 }

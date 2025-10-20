@@ -1,5 +1,6 @@
-// nolint:paralleltest,dupl,gosec // Tests are not run in parallel due to global
 // enforcer
+//
+//nolint:paralleltest,dupl,gosec // Tests are not run in parallel due to global
 package auth
 
 import (
