@@ -10,7 +10,7 @@ func AddPolicy(userGroup, resourceGroup, method string) error {
 		return err
 	}
 	if !ugExists {
-		return makeErrUserGroupNotFound(userGroup)
+		return &NotFoundError{"userGroup", userGroup}
 	}
 
 	rgExists, err := ResourceGroupExists(resourceGroup)
@@ -18,12 +18,12 @@ func AddPolicy(userGroup, resourceGroup, method string) error {
 		return err
 	}
 	if !rgExists {
-		return makeResourceGroupNotFoundError(resourceGroup)
+		return &NotFoundError{"resourceGroup", resourceGroup}
 	}
 
 	filteredPolicies, err := enforcer.GetFilteredPolicy(0, userGroup, resourceGroup, method)
 	if err != nil {
-		return makeErrCasbinConnection("AddPolicy", err)
+		return &CasbinError{"GetFilteredPolicy", err}
 	}
 	if len(filteredPolicies) > 0 {
 		return nil
@@ -31,12 +31,12 @@ func AddPolicy(userGroup, resourceGroup, method string) error {
 
 	_, err = enforcer.AddPolicy(userGroup, resourceGroup, method)
 	if err != nil {
-		return makeErrCasbinConnection("AddPolicy", err)
+		return &CasbinError{"AddPolicy", err}
 	}
 
 	err = enforcer.SavePolicy()
 	if err != nil {
-		return makeErrCasbinConnection("AddPolicy", err)
+		return &CasbinError{"AddPolicy", err}
 	}
 
 	return nil
@@ -48,17 +48,17 @@ func AddPolicy(userGroup, resourceGroup, method string) error {
 // access.
 func RemovePolicy(userGroup, resourceGroup, method string) error {
 	if userGroup == enclaveAdminGroup && resourceGroup == "*" && method == "*" {
-		return errEnclaveAdminPolicy
+		return &ConflictError{"The provided policy cannot be removed"}
 	}
 
 	_, err := enforcer.RemovePolicy(userGroup, resourceGroup, method)
 	if err != nil {
-		return makeErrCasbinConnection("RemovePolicy", err)
+		return &CasbinError{"RemovePolicy", err}
 	}
 
 	err = enforcer.SavePolicy()
 	if err != nil {
-		return makeErrCasbinConnection("RemovePolicy", err)
+		return &CasbinError{"RemovePolicy", err}
 	}
 
 	return nil

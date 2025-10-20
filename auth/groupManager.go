@@ -1,5 +1,7 @@
 package auth
 
+import "fmt"
+
 // GroupType represents the policy type for different group kinds
 type GroupType string
 
@@ -34,18 +36,18 @@ func (rg ResourceGroup) GetGroupName() string {
 
 // groupManager handles common group operations for different group types
 type groupManager[T group] struct {
-	groupType         GroupType
-	groupNotFoundErr  error
-	makeNotFoundError func(string) error
-	createGroupFunc   func(T, []string) T
+	groupType       GroupType
+	groupName       string
+	nullName        string
+	createGroupFunc func(T, []string) T
 }
 
 // newUserGroupManager creates a manager for user groups
 func newUserGroupManager() *groupManager[UserGroup] {
 	return &groupManager[UserGroup]{
-		groupType:         UserGroupType,
-		groupNotFoundErr:  errUserGroupNotFound,
-		makeNotFoundError: makeErrUserGroupNotFound,
+		groupType: UserGroupType,
+		groupName: "userGroup",
+		nullName:  nullUser,
 		createGroupFunc: func(group UserGroup, data []string) UserGroup {
 			return UserGroup{
 				UserName:  data[0],
@@ -58,9 +60,9 @@ func newUserGroupManager() *groupManager[UserGroup] {
 // newResourceGroupManager creates a manager for resource groups
 func newResourceGroupManager() *groupManager[ResourceGroup] {
 	return &groupManager[ResourceGroup]{
-		groupType:         ResourceGroupType,
-		groupNotFoundErr:  errResourceGroupNotFound,
-		makeNotFoundError: makeResourceGroupNotFoundError,
+		groupType: ResourceGroupType,
+		groupName: "resourceGroup",
+		nullName:  nullResource,
 		createGroupFunc: func(group ResourceGroup, data []string) ResourceGroup {
 			return ResourceGroup{
 				ResourceName: data[0],
@@ -84,12 +86,12 @@ func (gm *groupManager[T]) CreateGroup(groupName string) error {
 
 	_, err = enforcer.AddNamedGroupingPolicy(string(gm.groupType), groupName, groupName)
 	if err != nil {
-		return makeErrCasbinConnection("CreateGroup", err)
+		return &CasbinError{"CreateGroup", err}
 	}
 
 	err = enforcer.SavePolicy()
 	if err != nil {
-		return makeErrCasbinConnection("CreateGroup", err)
+		return &CasbinError{"CreateGroup", err}
 	}
 
 	return nil
@@ -99,7 +101,7 @@ func (gm *groupManager[T]) CreateGroup(groupName string) error {
 // It prevents removal of the enclaveAdmin group to maintain system security.
 func (gm *groupManager[T]) RemoveGroup(groupName string) error {
 	if groupName == enclaveAdminGroup {
-		return errEnclaveAdminPolicy
+		return &ConflictError{"Enclave admin group cannot be removed"}
 	}
 
 	groupExists, err := gm.GroupExists(groupName)
@@ -107,22 +109,22 @@ func (gm *groupManager[T]) RemoveGroup(groupName string) error {
 		return err
 	}
 	if !groupExists {
-		return gm.makeNotFoundError(groupName)
+		return &NotFoundError{gm.groupName, groupName}
 	}
 
 	_, err = enforcer.RemoveFilteredNamedGroupingPolicy(string(gm.groupType), 1, groupName)
 	if err != nil {
-		return makeErrCasbinConnection("RemoveGroup", err)
+		return &CasbinError{"RemoveGroup", err}
 	}
 
 	_, err = enforcer.RemoveFilteredPolicy(0, groupName)
 	if err != nil {
-		return makeErrCasbinConnection("RemoveGroup", err)
+		return &CasbinError{"RemoveGroup", err}
 	}
 
 	err = enforcer.SavePolicy()
 	if err != nil {
-		return makeErrCasbinConnection("RemoveGroup", err)
+		return &CasbinError{"RemoveGroup", err}
 	}
 
 	return nil
@@ -132,7 +134,7 @@ func (gm *groupManager[T]) RemoveGroup(groupName string) error {
 func (gm *groupManager[T]) GetGroups() ([]T, error) {
 	groups, err := enforcer.GetNamedGroupingPolicy(string(gm.groupType))
 	if err != nil {
-		return nil, makeErrCasbinConnection("GetGroups", err)
+		return nil, &CasbinError{"GetGroups", err}
 	}
 
 	var zero T
@@ -148,7 +150,7 @@ func (gm *groupManager[T]) GetGroups() ([]T, error) {
 func (gm *groupManager[T]) GroupExists(groupName string) (bool, error) {
 	filtered, err := enforcer.GetFilteredNamedGroupingPolicy(string(gm.groupType), 1, groupName)
 	if err != nil {
-		return false, makeErrCasbinConnection("GroupExists", err)
+		return false, &CasbinError{"GroupExists", err}
 	}
 
 	return len(filtered) > 0, nil
@@ -157,8 +159,8 @@ func (gm *groupManager[T]) GroupExists(groupName string) (bool, error) {
 // AddToGroup adds an entity to one or more groups.
 // It validates that all specified groups exist before adding the entity.
 func (gm *groupManager[T]) AddToGroup(entityName string, groupName ...string) error {
-	if entityName == nullUser {
-		return errNullUser
+	if entityName == gm.nullName {
+		return &ConflictError{fmt.Sprintf("Name %s is reserved", entityName)}
 	}
 
 	// Check that all groups exist
@@ -168,7 +170,7 @@ func (gm *groupManager[T]) AddToGroup(entityName string, groupName ...string) er
 			return err
 		}
 		if !groupExists {
-			return gm.makeNotFoundError(group)
+			return &NotFoundError{gm.groupName, group}
 		}
 	}
 
@@ -182,12 +184,12 @@ func (gm *groupManager[T]) AddToGroup(entityName string, groupName ...string) er
 		groupingPolicies,
 	)
 	if err != nil {
-		return makeErrCasbinConnection("AddToGroup", err)
+		return &CasbinError{"AddToGroup", err}
 	}
 
 	err = enforcer.SavePolicy()
 	if err != nil {
-		return makeErrCasbinConnection("AddToGroup", err)
+		return &CasbinError{"AddToGroup", err}
 	}
 
 	return nil
@@ -196,8 +198,8 @@ func (gm *groupManager[T]) AddToGroup(entityName string, groupName ...string) er
 // RemoveFromGroup removes an entity from one or more groups.
 // It validates that all specified groups exist before removing the entity.
 func (gm *groupManager[T]) RemoveFromGroup(entityName string, groupName ...string) error {
-	if entityName == nullUser {
-		return errNullUser
+	if entityName == gm.nullName {
+		return &ConflictError{fmt.Sprintf("Name %s is reserved", entityName)}
 	}
 
 	// Check that all groups exist
@@ -207,7 +209,7 @@ func (gm *groupManager[T]) RemoveFromGroup(entityName string, groupName ...strin
 			return err
 		}
 		if !groupExists {
-			return gm.makeNotFoundError(group)
+			return &NotFoundError{gm.groupName, group}
 		}
 	}
 
@@ -221,12 +223,12 @@ func (gm *groupManager[T]) RemoveFromGroup(entityName string, groupName ...strin
 		groupingPolicies,
 	)
 	if err != nil {
-		return makeErrCasbinConnection("RemoveFromGroup", err)
+		return &CasbinError{"RemoveFromGroup", err}
 	}
 
 	err = enforcer.SavePolicy()
 	if err != nil {
-		return makeErrCasbinConnection("RemoveFromGroup", err)
+		return &CasbinError{"RemoveFromGroup", err}
 	}
 
 	return nil
@@ -234,18 +236,18 @@ func (gm *groupManager[T]) RemoveFromGroup(entityName string, groupName ...strin
 
 // RemoveEntity removes an entity from all groups it belongs to.
 func (gm *groupManager[T]) RemoveEntity(entityName string) error {
-	if entityName == nullUser {
-		return errNullUser
+	if entityName == gm.nullName {
+		return &ConflictError{fmt.Sprintf("Name %s is reserved", entityName)}
 	}
 
 	_, err := enforcer.RemoveFilteredNamedGroupingPolicy(string(gm.groupType), 0, entityName)
 	if err != nil {
-		return makeErrCasbinConnection("RemoveEntity", err)
+		return &CasbinError{"RemoveEntity", err}
 	}
 
 	err = enforcer.SavePolicy()
 	if err != nil {
-		return makeErrCasbinConnection("RemoveEntity", err)
+		return &CasbinError{"RemoveEntity", err}
 	}
 
 	return nil
@@ -255,7 +257,7 @@ func (gm *groupManager[T]) RemoveEntity(entityName string) error {
 func (gm *groupManager[T]) GetGroupsForEntity(entityName string) ([]string, error) {
 	entityGroups, err := enforcer.GetFilteredNamedGroupingPolicy(string(gm.groupType), 0, entityName)
 	if err != nil {
-		return nil, makeErrCasbinConnection("GetGroupsForEntity", err)
+		return nil, &CasbinError{"GetGroupsForEntity", err}
 	}
 
 	groupNames := make([]string, 0, len(entityGroups))
@@ -273,12 +275,12 @@ func (gm *groupManager[T]) GetEntitiesInGroup(groupName string) ([]string, error
 		return nil, err
 	}
 	if !groupExists {
-		return nil, gm.makeNotFoundError(groupName)
+		return nil, &NotFoundError{gm.groupName, groupName}
 	}
 
 	entityGroups, err := enforcer.GetFilteredNamedGroupingPolicy(string(gm.groupType), 1, groupName)
 	if err != nil {
-		return nil, makeErrCasbinConnection("GetEntitiesInGroup", err)
+		return nil, &CasbinError{"GetEntitiesInGroup", err}
 	}
 
 	entityNames := make([]string, 0, len(entityGroups))

@@ -134,13 +134,13 @@ func TestRemoveUserGroup(t *testing.T) {
 			name:      "remove non-existing group",
 			groupName: "nonExistentGroup",
 			wantErr:   true,
-			errType:   errUserGroupNotFound,
+			errType:   &NotFoundError{},
 		},
 		{
 			name:      "cannot remove enclaveAdmin group",
 			groupName: enclaveAdminGroup,
 			wantErr:   true,
-			errType:   errEnclaveAdminPolicy,
+			errType:   &ConflictError{},
 		},
 	}
 
@@ -198,14 +198,14 @@ func TestAddUserToGroup(t *testing.T) {
 			userName:   "testUser3",
 			groupNames: []string{"nonExistentGroup"},
 			wantErr:    true,
-			errType:    errUserGroupNotFound,
+			errType:    &NotFoundError{},
 		},
 		{
 			name:       "cannot add nullUser",
 			userName:   nullUser,
 			groupNames: []string{"testGroup1"},
 			wantErr:    true,
-			errType:    errNullUser,
+			errType:    &ConflictError{},
 		},
 	}
 
@@ -265,14 +265,14 @@ func TestRemoveUserFromGroup(t *testing.T) {
 			userName:   "testUser",
 			groupNames: []string{"nonExistentGroup"},
 			wantErr:    true,
-			errType:    errUserGroupNotFound,
+			errType:    &NotFoundError{},
 		},
 		{
 			name:       "cannot remove nullUser",
 			userName:   nullUser,
 			groupNames: []string{"testGroup"},
 			wantErr:    true,
-			errType:    errNullUser,
+			errType:    &ConflictError{},
 		},
 		{
 			name:       "remove user from multiple groups",
@@ -365,13 +365,13 @@ func TestRemoveResourceGroup(t *testing.T) {
 			name:      "remove non-existing resource group",
 			groupName: "nonExistentResourceGroup",
 			wantErr:   true,
-			errType:   errResourceGroupNotFound,
+			errType:   &NotFoundError{},
 		},
 		{
 			name:      "cannot remove enclaveAdmin resource group",
 			groupName: enclaveAdminGroup,
 			wantErr:   true,
-			errType:   errEnclaveAdminPolicy,
+			errType:   &ConflictError{},
 		},
 	}
 
@@ -429,7 +429,7 @@ func TestAddResourceToGroup(t *testing.T) {
 			resourceName: "testResource3",
 			groupNames:   []string{"nonExistentResourceGroup"},
 			wantErr:      true,
-			errType:      errResourceGroupNotFound,
+			errType:      &NotFoundError{},
 		},
 	}
 
@@ -493,7 +493,7 @@ func TestAddPolicy(t *testing.T) {
 			resourceGroup: "testResourceGroup",
 			method:        "POST",
 			wantErr:       true,
-			errType:       errUserGroupNotFound,
+			errType:       &NotFoundError{},
 		},
 		{
 			name:          "add policy with non-existent resource group",
@@ -501,7 +501,7 @@ func TestAddPolicy(t *testing.T) {
 			resourceGroup: "nonExistentResourceGroup",
 			method:        "POST",
 			wantErr:       true,
-			errType:       errResourceGroupNotFound,
+			errType:       &NotFoundError{},
 		},
 	}
 
@@ -565,7 +565,7 @@ func TestRemovePolicy(t *testing.T) {
 			resourceGroup: "*",
 			method:        "*",
 			wantErr:       true,
-			errType:       errEnclaveAdminPolicy,
+			errType:       &ConflictError{},
 		},
 	}
 
@@ -691,7 +691,7 @@ func TestRemoveUser(t *testing.T) {
 
 	// Test removing nullUser
 	err = RemoveUser(nullUser)
-	assert.ErrorIs(t, err, errNullUser)
+	assert.ErrorIs(t, err, &ConflictError{})
 }
 
 func TestRemoveResource(t *testing.T) {
@@ -714,27 +714,6 @@ func TestRemoveResource(t *testing.T) {
 	resourceGroups, err := GetGroupsForResource("testResource")
 	assert.NoError(t, err)
 	assert.Empty(t, resourceGroups)
-}
-
-func TestErrorTypes(t *testing.T) {
-	// Test error creation functions
-	t.Run("makeErrCasbinConnection", func(t *testing.T) {
-		err := makeErrCasbinConnection("test action", assert.AnError)
-		assert.ErrorIs(t, err, errCasbinConnection)
-		assert.Contains(t, err.Error(), "test action")
-	})
-
-	t.Run("makeErrUserGroupNotFound", func(t *testing.T) {
-		err := makeErrUserGroupNotFound("testGroup")
-		assert.ErrorIs(t, err, errUserGroupNotFound)
-		assert.Contains(t, err.Error(), "testGroup")
-	})
-
-	t.Run("makeResourceGroupNotFoundError", func(t *testing.T) {
-		err := makeResourceGroupNotFoundError("testResourceGroup")
-		assert.ErrorIs(t, err, errResourceGroupNotFound)
-		assert.Contains(t, err.Error(), "testResourceGroup")
-	})
 }
 
 func TestGroupManagerInterface(t *testing.T) {
