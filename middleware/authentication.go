@@ -22,11 +22,16 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 				Str("user", username).
 				Msg("Authenticating user with BasicAuth")
 			// BasicAuth provided, validate it
-			userID, err := basicAuthAuthenticator(c.Request.Context(), username, password)
+			userID, err := basicAuthAuthenticator(
+				c.Request.Context(),
+				username,
+				password,
+			)
 
 			if err == nil {
 				authenticatedUser = userID
 			} else {
+				log.Debug().Err(err).Msg("Basic authentication failed")
 				authorizationFailed = true
 			}
 		} else {
@@ -36,13 +41,7 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 		}
 
 		c.Request.SetBasicAuth(authenticatedUser, "")
-		c.Request = c.Request.WithContext(
-			context.WithValue(
-				c.Request.Context(),
-				auth.AuthenticatedUser,
-				authenticatedUser,
-			),
-		)
+		auth.InsertAuthenticatedUser(c, authenticatedUser)
 
 		user, _, _ := c.Request.BasicAuth()
 		method := c.Request.Method

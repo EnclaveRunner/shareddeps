@@ -5,14 +5,12 @@ import (
 )
 
 const (
-	nullUser                        = "nullUser"
-	nullResource                    = "nullResource"
-	enclaveAdminGroup               = "enclaveAdmin"
-	AuthenticatedUser   ConstextKey = "authenticatedUser"
-	UnauthenticatedUser             = "__unauthenticated__"
+	nullUser                    = "nullUser"
+	nullResource                = "nullResource"
+	enclaveAdminGroup           = "enclaveAdmin"
+	ContextKeyAuthenticatedUser = "enclave/authenticatedUser"
+	UnauthenticatedUser         = "__unauthenticated__"
 )
-
-type ConstextKey string
 
 type CasbinError struct {
 	Action string
