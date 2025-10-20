@@ -54,7 +54,10 @@ func configLoadingError(reason string, err error) error {
 
 var Cfg = &BaseConfig{}
 
-func LoadAppConfig[T HasBaseConfig](config T, serviceName, version string) error {
+func LoadAppConfig[T HasBaseConfig](
+	config T,
+	serviceName, version string,
+) error {
 	// Set logger fields
 	hostname, _ := os.Hostname()
 	if hostname == "" {
@@ -114,7 +117,9 @@ func LoadAppConfig[T HasBaseConfig](config T, serviceName, version string) error
 	}
 
 	if config.GetBase().HumanReadableOutput {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: false})
+		log.Logger = log.Output(
+			zerolog.ConsoleWriter{Out: os.Stdout, NoColor: false},
+		)
 	}
 
 	*Cfg = *config.GetBase()

@@ -20,7 +20,9 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 		authenticatedUser := ""
 		authorizationFailed := false
 		if hasBasicAuth {
-			log.Debug().Str("user", username).Msg("Authenticating user with BasicAuth")
+			log.Debug().
+				Str("user", username).
+				Msg("Authenticating user with BasicAuth")
 			// BasicAuth provided, validate it
 			userID, err := basicAuthAuthenticator(username, password)
 

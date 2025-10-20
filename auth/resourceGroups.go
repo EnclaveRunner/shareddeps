@@ -20,12 +20,14 @@ func RemoveResourceGroup(groupName string) error {
 	return resourceGroupManager.RemoveGroup(groupName)
 }
 
-// GetResourceGroups returns all resource groups as a slice of ResourceGroup structs.
+// GetResourceGroups returns all resource groups as a slice of ResourceGroup
+// structs.
 func GetResourceGroups() ([]ResourceGroup, error) {
 	return resourceGroupManager.GetGroups()
 }
 
-// ResourceGroupExists checks if a resource group with the specified name exists.
+// ResourceGroupExists checks if a resource group with the specified name
+// exists.
 func ResourceGroupExists(groupName string) (bool, error) {
 	return resourceGroupManager.GroupExists(groupName)
 }

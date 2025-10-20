@@ -1,4 +1,5 @@
-//nolint:paralleltest,dupl,gosec // Tests are not run in parallel due to global enforcer
+// nolint:paralleltest,dupl,gosec // Tests are not run in parallel due to global
+// enforcer
 package auth
 
 import (
@@ -45,7 +46,8 @@ func TestInitAuth(t *testing.T) {
 
 	foundAdminPolicy := false
 	for _, policy := range policies {
-		if len(policy) >= 3 && policy[0] == enclaveAdminGroup && policy[1] == "*" && policy[2] == "*" {
+		if len(policy) >= 3 && policy[0] == enclaveAdminGroup && policy[1] == "*" &&
+			policy[2] == "*" {
 			foundAdminPolicy = true
 
 			break
@@ -59,7 +61,8 @@ func TestInitAuth(t *testing.T) {
 
 	foundAdminGroup := false
 	for _, group := range userGroups {
-		if len(group) >= 2 && group[0] == nullUser && group[1] == enclaveAdminGroup {
+		if len(group) >= 2 && group[0] == nullUser &&
+			group[1] == enclaveAdminGroup {
 			foundAdminGroup = true
 
 			break
@@ -703,7 +706,11 @@ func TestRemoveResource(t *testing.T) {
 	require.NoError(t, err)
 	err = CreateResourceGroup("testResourceGroup2")
 	require.NoError(t, err)
-	err = AddResourceToGroup("testResource", "testResourceGroup1", "testResourceGroup2")
+	err = AddResourceToGroup(
+		"testResource",
+		"testResourceGroup1",
+		"testResourceGroup2",
+	)
 	require.NoError(t, err)
 
 	// Remove resource
