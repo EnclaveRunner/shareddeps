@@ -1,11 +1,11 @@
-package shareddeps
+package main
 
 import (
 	"fmt"
+	"shareddeps/auth"
+	"shareddeps/config"
+	"shareddeps/middleware"
 
-	"github.com/EnclaveRunner/shareddeps/auth"
-	"github.com/EnclaveRunner/shareddeps/config"
-	"github.com/EnclaveRunner/shareddeps/middleware"
 	"github.com/casbin/casbin/v2/persist"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
