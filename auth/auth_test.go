@@ -112,6 +112,10 @@ func TestCreateUserGroup(t *testing.T) {
 				exists, err := UserGroupExists(tc.groupName)
 				assert.NoError(t, err)
 				assert.True(t, exists)
+
+				assignedGroups, err := GetUserGroup(tc.groupName)
+				assert.NoError(t, err)
+				assert.Len(t, assignedGroups, 0)
 			}
 		})
 	}
@@ -343,6 +347,10 @@ func TestCreateResourceGroup(t *testing.T) {
 				exists, err := ResourceGroupExists(tc.groupName)
 				assert.NoError(t, err)
 				assert.True(t, exists)
+
+				assignedResources, err := GetResourceGroup(tc.groupName)
+				assert.NoError(t, err)
+				assert.Len(t, assignedResources, 0)
 			}
 		})
 	}
