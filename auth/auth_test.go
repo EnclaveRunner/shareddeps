@@ -1,6 +1,8 @@
 // enforcer
 //
-//nolint:paralleltest,dupl,gosec // Tests are not run in parallel due to global enforcer state
+// enforcer state
+//
+//nolint:paralleltest,dupl,gosec // Tests are not run in parallel due to global
 package auth
 
 import (
