@@ -17,7 +17,8 @@ type Authentication struct {
 	BasicAuthenticator middleware.BasicAuthenticator
 }
 
-// GetConfig is the main function for consumers to load and get their configuration.
+// GetConfig is the main function for consumers to load and get their
+// configuration.
 // It takes a pointer to any struct type that defines the configuration schema.
 // The struct should have appropriate mapstructure and validate tags.
 // Must be called before Init.
@@ -60,7 +61,8 @@ func AddAuth(
 
 // @title			SharedDeps Server
 // @version			v0.0.0
-// @description	API Abstraction of common web-server duties providing re-use capabilities.
+// @description	API Abstraction of common web-server duties providing re-use
+// capabilities.
 // @license.name	GNU General Public License v3.0
 // @license.url	https://www.gnu.org/licenses/gpl-3.0.html
 func Start() {

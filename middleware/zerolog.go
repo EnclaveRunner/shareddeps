@@ -9,8 +9,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ZerologMiddleware returns a gin middleware that logs HTTP requests using zerolog.
-// It logs the HTTP method, path, client IP, status code, latency, and other request details.
+// ZerologMiddleware returns a gin middleware that logs HTTP requests using
+// zerolog. It logs the HTTP method, path, client IP, status code, latency, and
+// other request details.
 func Zerolog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

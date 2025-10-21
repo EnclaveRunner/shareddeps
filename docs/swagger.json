@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "API Abstraction of common web-server duties providing re-use capabilities.",
+        "description": "API Abstraction of common web-server duties providing re-use",
         "title": "SharedDeps Server",
         "contact": {},
         "license": {
