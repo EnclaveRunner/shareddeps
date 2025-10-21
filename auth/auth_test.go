@@ -154,7 +154,7 @@ func TestRemoveUserGroup(t *testing.T) {
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
-					assert.ErrorIs(t, err, tc.errType)
+					assert.ErrorAs(t, err, &tc.errType)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -219,7 +219,7 @@ func TestAddUserToGroup(t *testing.T) {
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
-					assert.ErrorIs(t, err, tc.errType)
+					assert.ErrorAs(t, err, &tc.errType)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -292,7 +292,7 @@ func TestRemoveUserFromGroup(t *testing.T) {
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
-					assert.ErrorIs(t, err, tc.errType)
+					assert.ErrorAs(t, err, &tc.errType)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -385,7 +385,7 @@ func TestRemoveResourceGroup(t *testing.T) {
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
-					assert.ErrorIs(t, err, tc.errType)
+					assert.ErrorAs(t, err, &tc.errType)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -443,7 +443,7 @@ func TestAddResourceToGroup(t *testing.T) {
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
-					assert.ErrorIs(t, err, tc.errType)
+					assert.ErrorAs(t, err, &tc.errType)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -515,7 +515,7 @@ func TestAddPolicy(t *testing.T) {
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
-					assert.ErrorIs(t, err, tc.errType)
+					assert.ErrorAs(t, err, &tc.errType)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -579,7 +579,7 @@ func TestRemovePolicy(t *testing.T) {
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
-					assert.ErrorIs(t, err, tc.errType)
+					assert.ErrorAs(t, err, &tc.errType)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -695,7 +695,8 @@ func TestRemoveUser(t *testing.T) {
 
 	// Test removing nullUser
 	err = RemoveUser(nullUser)
-	assert.ErrorIs(t, err, &ConflictError{})
+	var errConflict *ConflictError
+	assert.ErrorAs(t, err, &errConflict)
 }
 
 func TestRemoveResource(t *testing.T) {
