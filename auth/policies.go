@@ -12,20 +12,24 @@ type Policy struct {
 // and throws if they
 // do not.
 func AddPolicy(userGroup, resourceGroup, method string) error {
-	ugExists, err := UserGroupExists(userGroup)
-	if err != nil {
-		return err
-	}
-	if !ugExists {
-		return &NotFoundError{"userGroup", userGroup}
+	if userGroup != "*" {
+		ugExists, err := UserGroupExists(userGroup)
+		if err != nil {
+			return err
+		}
+		if !ugExists {
+			return &NotFoundError{"userGroup", userGroup}
+		}
 	}
 
-	rgExists, err := ResourceGroupExists(resourceGroup)
-	if err != nil {
-		return err
-	}
-	if !rgExists {
-		return &NotFoundError{"resourceGroup", resourceGroup}
+	if resourceGroup != "*" {
+		rgExists, err := ResourceGroupExists(resourceGroup)
+		if err != nil {
+			return err
+		}
+		if !rgExists {
+			return &NotFoundError{"resourceGroup", resourceGroup}
+		}
 	}
 
 	filteredPolicies, err := enforcer.GetFilteredPolicy(
