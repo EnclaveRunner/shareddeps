@@ -5,6 +5,8 @@ info:
 paths:
   /health:
     get:
+      tags:
+        - Health
       summary: Health Check
       responses:
         '200':
