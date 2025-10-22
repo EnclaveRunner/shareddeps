@@ -13,6 +13,9 @@ func NewServer() *Server {
 }
 
 // GetHealth implements StrictServerInterface.
-func (s *Server) GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error) {
+func (s *Server) GetHealth(
+	ctx context.Context,
+	request GetHealthRequestObject,
+) (GetHealthResponseObject, error) {
 	return GetHealth200Response{}, nil
 }
