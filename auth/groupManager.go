@@ -2,8 +2,6 @@ package auth
 
 import (
 	"fmt"
-
-	"github.com/rs/zerolog/log"
 )
 
 // GroupType represents the policy type for different group kinds
@@ -323,10 +321,6 @@ func (gm *groupManager[T]) GetEntitiesInGroup(
 
 	entityNames := make([]string, 0, len(entityGroups))
 	for _, group := range entityGroups {
-		log.Debug().
-			Str("resource", group[0]).
-			Str("group", group[1]).
-			Msg("Parsing group")
 		if group[0] == gm.nullName {
 			continue
 		}
