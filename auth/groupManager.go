@@ -326,7 +326,7 @@ func (gm *groupManager[T]) GetEntitiesInGroup(
 		log.Debug().
 			Str("resource", group[0]).
 			Str("group", group[1]).
-			Msg("Prasing group")
+			Msg("Parsing group")
 		if group[0] == gm.nullName {
 			continue
 		}
