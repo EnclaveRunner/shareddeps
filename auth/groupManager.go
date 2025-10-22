@@ -1,6 +1,8 @@
 package auth
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // GroupType represents the policy type for different group kinds
 type GroupType string
@@ -86,7 +88,7 @@ func (gm *groupManager[T]) CreateGroup(groupName string) error {
 
 	_, err = enforcer.AddNamedGroupingPolicy(
 		string(gm.groupType),
-		groupName,
+		gm.nullName,
 		groupName,
 	)
 	if err != nil {
@@ -319,7 +321,7 @@ func (gm *groupManager[T]) GetEntitiesInGroup(
 
 	entityNames := make([]string, 0, len(entityGroups))
 	for _, group := range entityGroups {
-		if group[0] == nullUser {
+		if group[0] == gm.nullName {
 			continue
 		}
 		entityNames = append(entityNames, group[0])
