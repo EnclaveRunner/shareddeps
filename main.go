@@ -3,6 +3,7 @@ package shareddeps
 import (
 	"fmt"
 
+	"github.com/EnclaveRunner/shareddeps/api"
 	"github.com/EnclaveRunner/shareddeps/auth"
 	"github.com/EnclaveRunner/shareddeps/config"
 	"github.com/EnclaveRunner/shareddeps/middleware"
@@ -42,6 +43,10 @@ func Init[T config.HasBaseConfig](
 
 	// Add our custom zerolog middleware
 	Server.Use(middleware.Zerolog())
+
+	server := api.NewServer()
+	handler := api.NewStrictHandler(server, nil)
+	api.RegisterHandlers(Server, handler)
 
 	log.Info().
 		Int("port", cfg.GetBase().Port).
