@@ -1,4 +1,4 @@
-module shareddeps
+module github.com/EnclaveRunner/shareddeps
 
 go 1.25.0
 

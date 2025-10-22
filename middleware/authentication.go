@@ -3,8 +3,8 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"shareddeps/auth"
 
+	"github.com/EnclaveRunner/shareddeps/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 )
