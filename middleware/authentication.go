@@ -43,16 +43,6 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 		c.Request.SetBasicAuth(authenticatedUser, "")
 		auth.InsertAuthenticatedUser(c, authenticatedUser)
 
-		user, _, _ := c.Request.BasicAuth()
-		method := c.Request.Method
-		path := c.Request.URL.Path
-
-		log.Debug().
-			Str("user", user).
-			Str("method", method).
-			Str("path", path).
-			Msg("Authentication middleware processed request")
-
 		if authorizationFailed {
 			// Authentication failed. Return 401 and abort the request.
 			c.AbortWithStatus(http.StatusUnauthorized)

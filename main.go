@@ -48,9 +48,7 @@ func Init[T config.HasBaseConfig](
 	handler := api.NewStrictHandler(server, nil)
 	api.RegisterHandlers(Server, handler)
 
-	log.Info().
-		Int("port", cfg.GetBase().Port).
-		Msg("Server initialized with middleware")
+	log.Info().Msg("Server initialized with middleware")
 }
 
 // AddAuth adds authentication and authorization middleware to the server.
@@ -62,15 +60,32 @@ func AddAuth(
 	enforcer := auth.InitAuth(policyAdapter)
 	Server.Use(middleware.Authentication(authentication.BasicAuthenticator))
 	Server.Use(middleware.Authz(enforcer))
+
+	// Add policy to allow health checks without authentication
+	err := auth.CreateResourceGroup("health_INTERNAL")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create health_INTERNAL resource group")
+	}
+	err = auth.AddResourceToGroup("/health", "health_INTERNAL")
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("Failed to add /health to health_INTERNAL resource group")
+	}
+	err = auth.AddPolicy("*", "health_INTERNAL", "GET")
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("Failed to add policy for health_INTERNAL resource group")
+	}
+
+	log.Info().Msg("Authentication and Authorization middleware added")
 }
 
-// @title			SharedDeps Server
-// @version			v0.0.0
-// @description	API Abstraction of common web-server duties providing re-use
-// capabilities.
-// @license.name	GNU General Public License v3.0
-// @license.url	https://www.gnu.org/licenses/gpl-3.0.html
 func Start() {
+	log.Info().
+		Int("port", config.Cfg.Port).
+		Msg("Setup finished. Starting to listen")
 	addr := fmt.Sprintf(":%d", config.Cfg.Port)
 	if err := Server.Run(addr); err != nil {
 		log.Fatal().Err(err).Msgf("Failed to start server on %s", addr)
