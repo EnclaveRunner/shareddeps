@@ -36,6 +36,10 @@ jobs:
           git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
           git push origin main
 
+      - name: Version Bump
+        if: steps.version.outputs.hasNextVersion == 'true'
+        run: make update-version
+
       - name: Tag commit
         if: steps.version.outputs.hasNextVersion == 'true'
         run: |
