@@ -1,4 +1,3 @@
-
 name: Release
 on:
   workflow_run:
@@ -26,11 +25,22 @@ jobs:
         id: version
         with:
           prefix: "v"
+
+      - name: Update Version file
+        if: steps.version.outputs.hasNextVersion == 'true'
+        run: |
+          echo "${{ steps.version.outputs.version }}" > Version
+          git config user.name "Enclave Bot"
+          git config user.email "enclave-automation@marvin-fuchs.de"
+          git add Version
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
+          git push origin main
+
       - name: Tag commit
         if: steps.version.outputs.hasNextVersion == 'true'
         run: |
           git config user.name "Enclave Bot"
-          git config user.email "enclave@marvin-fuchs.de"
+          git config user.email "enclave-automation@marvin-fuchs.de"
           git tag ${{ steps.version.outputs.version }}
           git push origin ${{ steps.version.outputs.version }}
 
