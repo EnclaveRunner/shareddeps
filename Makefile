@@ -1,4 +1,4 @@
-.PHONY: test test-verbose test-coverage test-race bench clean verify fmt lint oapi update-version
+.PHONY: test test-verbose test-coverage test-race bench clean verify fmt lint oapi
 
 # Default target
 all: test
@@ -52,29 +52,6 @@ verify:
 	go build -v ./...
 	go clean -testcache
 	@echo "✅ CI Test will pass, you are ready to commit / open the PR! Thank you for your contribution :)"
-# Update version references in files
-update-version:
-	@if [ ! -f "Version" ]; then \
-		echo "❌ Version file not found"; \
-		exit 1; \
-	fi
-	@VERSION=$$(cat Version | tr -d '\n'); \
-	if [ -z "$$VERSION" ]; then \
-		echo "❌ Version file is empty"; \
-		exit 1; \
-	fi; \
-	echo " Current version: $$VERSION"; \
-	echo " Searching for version patterns to update..."; \
-	find . -type f \( -name "*.go" -o -name "*.md" -o -name "*.yml" -o -name "*.yaml" -o -name "*.json" \) \
-		-not -path "./.git/*" \
-		-not -path "./vendor/*" \
-		-not -path "./.direnv/*" \
-		-exec grep -l "v[0-9]\+\.[0-9]\+\.[0-9]\+" {} \; | \
-	while read -r file; do \
-		echo "   Updating $$file"; \
-		sed -i.bak "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/$$VERSION/g" "$$file" && rm -f "$$file.bak"; \
-	done; \
-	echo " Version update complete!"
 
 # Show help
 help:
@@ -90,5 +67,4 @@ help:
 	@echo "  clean         - Clean test cache"
 	@echo "  oapi          - Create gin server from OpenAPI spec"
 	@echo "  verify        - Simulate CI Checks before opening a PR"
-	@echo "  update-version - Update all version references to match Version file"
 	@echo "  help          - Show this help"
