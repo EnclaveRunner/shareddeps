@@ -12,21 +12,22 @@ import (
 	"github.com/EnclaveRunner/shareddeps/client"
 	"github.com/EnclaveRunner/shareddeps/config"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
 func startServer(t *testing.T, port int) {
-	viper.Set("port", port)
-	viper.Set("production_environment", false)
-	viper.Set("logging.level", "debug")
-	viper.Set("human_readable_output", true)
+	defaults := []config.DefaultValue{
+		{Key: "port", Value: port},
+		{Key: "production_environment", Value: false},
+		{Key: "log_level", Value: "debug"},
+		{Key: "human_readable_output", Value: true},
+	}
 
 	tmpDir := t.TempDir()
 	err := os.WriteFile(tmpDir+"/policies.csv", []byte(""), 0o644)
 	assert.NoError(t, err)
 
-	shareddeps.Init(config.Cfg, "test-service", "v0.6.0")
+	shareddeps.Init(config.Cfg, "test-service", "v0.6.0", defaults...)
 	shareddeps.AddAuth(
 		fileadapter.NewAdapter(tmpDir+"/policies.csv"),
 		shareddeps.Authentication{

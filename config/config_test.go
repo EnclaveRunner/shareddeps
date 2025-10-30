@@ -1,6 +1,6 @@
 // environment variables loading
 //
-//nolint:paralleltest // Config loading code is not thread-safe due to
+//nolint:paralleltest // Config loading code is not thread-safe due to modification of process-wide environment variables during testspackage config
 package config
 
 import (

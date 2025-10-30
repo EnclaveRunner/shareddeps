@@ -32,7 +32,7 @@ var Cfg = &BaseConfig{}
 
 type DefaultValue struct {
 	Key   string
-	Value string
+	Value any
 }
 
 type ConfigError struct {
@@ -55,16 +55,16 @@ type ValidationError struct {
 func (e ValidationError) Error() string {
 	switch e.Err.Tag() {
 	case "required":
-		return fmt.Sprintf("the '%s' field is required", e.Err.Field())
+		return fmt.Sprintf("Field '%s' is required", e.Err.Field())
 	case "oneof":
 		return fmt.Sprintf(
-			"the '%s' field must be one of the following: %s",
+			"Field '%s' must be one of the following: %s",
 			e.Err.Field(),
 			e.Err.Param(),
 		)
 	case "min":
 		return fmt.Sprintf(
-			"the '%s' field must be at least %s",
+			"Field '%s' must be at least %s",
 			e.Err.Field(),
 			e.Err.Param(),
 		)
