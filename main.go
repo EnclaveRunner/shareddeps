@@ -82,7 +82,8 @@ func StartGRPCServer() {
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Msg("Failed to create gRPC listener on Port: " + strconv.Itoa(config.Cfg.Port))
+			Int("port", config.Cfg.Port).
+			Msg("Failed to create gRPC listener")
 	}
 
 	log.Info().
