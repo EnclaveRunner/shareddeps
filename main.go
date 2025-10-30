@@ -1,7 +1,9 @@
 package shareddeps
 
 import (
+	"context"
 	"fmt"
+	"net"
 
 	"github.com/EnclaveRunner/shareddeps/api"
 	"github.com/EnclaveRunner/shareddeps/auth"
@@ -10,9 +12,12 @@ import (
 	"github.com/casbin/casbin/v2/persist"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
 )
 
-var Server *gin.Engine
+var RESTServer *gin.Engine
+
+var GRPCServer *grpc.Server
 
 type Authentication struct {
 	BasicAuthenticator middleware.BasicAuthenticator
@@ -23,7 +28,7 @@ type Authentication struct {
 // It takes a pointer to any struct type that defines the configuration schema.
 // The struct should have appropriate mapstructure and validate tags.
 // Must be called before Init.
-func Init[T config.HasBaseConfig](
+func InitRESTServer[T config.HasBaseConfig](
 	cfg T,
 	serviceName, version string, defaultValues ...config.DefaultValue,
 ) {
@@ -36,30 +41,78 @@ func Init[T config.HasBaseConfig](
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	Server = gin.New()
+	RESTServer = gin.New()
 
 	// Add recovery middleware
-	Server.Use(gin.Recovery())
+	RESTServer.Use(gin.Recovery())
 
 	// Add our custom zerolog middleware
-	Server.Use(middleware.Zerolog())
+	RESTServer.Use(middleware.Zerolog())
 
 	server := api.NewServer()
 	handler := api.NewStrictHandler(server, nil)
-	api.RegisterHandlers(Server, handler)
+	api.RegisterHandlers(RESTServer, handler)
 
 	log.Info().Msg("Server initialized with middleware")
 }
 
-// AddAuth adds authentication and authorization middleware to the server.
-// Must be called after Init and before Start.
+func InitGRPCServer[T config.HasBaseConfig](
+	cfg T,
+	serviceName, version string, defaultValues ...config.DefaultValue,
+) {
+	err := config.LoadAppConfig(cfg, serviceName, version, defaultValues...)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load configuration")
+	}
+
+	// create the gRPC server and assign to the package-level variable
+	GRPCServer = grpc.NewServer()
+
+	log.Info().Msg("gRPC server initialized")
+}
+
+func StartGRPCServer() {
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(
+		context.Background(),
+		"tcp",
+		fmt.Sprintf(":%d", config.Cfg.Port),
+	)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Int("port", config.Cfg.Port).
+			Msg("Failed to create gRPC listener")
+	}
+
+	log.Info().
+		Int("port", config.Cfg.Port).
+		Msg("Setup finished. Starting to listen")
+	addr := fmt.Sprintf(":%d", config.Cfg.Port)
+	if err := GRPCServer.Serve(lis); err != nil {
+		log.Fatal().Err(err).Msgf("Failed to start gRPC server on %s", addr)
+	}
+}
+
+func StartRESTServer() {
+	log.Info().
+		Int("port", config.Cfg.Port).
+		Msg("Setup finished. Starting to listen")
+	addr := fmt.Sprintf(":%d", config.Cfg.Port)
+	if err := RESTServer.Run(addr); err != nil {
+		log.Fatal().Err(err).Msgf("Failed to start server on %s", addr)
+	}
+}
+
+// AddAuth adds authentication and authorization middleware to the REST-Server.
+// Must be called after InitRESTServer and before StartRESTServer.
 func AddAuth(
 	policyAdapter persist.Adapter,
 	authentication Authentication,
 ) {
 	enforcer := auth.InitAuth(policyAdapter)
-	Server.Use(middleware.Authentication(authentication.BasicAuthenticator))
-	Server.Use(middleware.Authz(enforcer))
+	RESTServer.Use(middleware.Authentication(authentication.BasicAuthenticator))
+	RESTServer.Use(middleware.Authz(enforcer))
 
 	// Add policy to allow health checks without authentication
 	err := auth.CreateResourceGroup("health_INTERNAL")
@@ -80,14 +133,4 @@ func AddAuth(
 	}
 
 	log.Info().Msg("Authentication and Authorization middleware added")
-}
-
-func Start() {
-	log.Info().
-		Int("port", config.Cfg.Port).
-		Msg("Setup finished. Starting to listen")
-	addr := fmt.Sprintf(":%d", config.Cfg.Port)
-	if err := Server.Run(addr); err != nil {
-		log.Fatal().Err(err).Msgf("Failed to start server on %s", addr)
-	}
 }
