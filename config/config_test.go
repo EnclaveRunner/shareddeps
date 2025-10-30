@@ -30,6 +30,22 @@ func (m *MinimalConfig) GetBase() *BaseConfig {
 	return &m.BaseConfig
 }
 
+// NestedStruct is a nested configuration struct
+type NestedStruct struct {
+	NestedField string `mapstructure:"nested_field" validate:"required"`
+	OptionalInt int    `mapstructure:"optional_int"`
+}
+
+// ConfigWithNested has nested configuration
+type ConfigWithNested struct {
+	BaseConfig `mapstructure:",squash"`
+	Database   NestedStruct `mapstructure:"database" validate:"required"`
+}
+
+func (c *ConfigWithNested) GetBase() *BaseConfig {
+	return &c.BaseConfig
+}
+
 func TestLoadAppConfig_WithDefaults(t *testing.T) {
 	// Reset environment
 	clearEnv(t)
@@ -273,6 +289,65 @@ func TestGetBase(t *testing.T) {
 	assert.Equal(t, base, base.GetBase())
 }
 
+func TestLoadAppConfig_WithNestedConfig(t *testing.T) {
+	clearEnv(t)
+
+	// Create a temporary directory and config file
+	tmpDir := t.TempDir()
+	configContent := `
+log_level: info
+port: 8080
+database:
+  nested_field: test_value
+  optional_int: 42
+`
+	configPath := filepath.Join(tmpDir, "test-service.yml")
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	require.NoError(t, err)
+
+	// Change to temp directory
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer os.Chdir(originalDir)
+	err = os.Chdir(tmpDir)
+	require.NoError(t, err)
+
+	config := &ConfigWithNested{}
+	err = LoadAppConfig(config, "test-service", "1.0.0")
+
+	require.NoError(t, err)
+	assert.Equal(t, "test_value", config.Database.NestedField)
+	assert.Equal(t, 42, config.Database.OptionalInt)
+}
+
+func TestLoadAppConfig_NestedConfigFromEnv(t *testing.T) {
+	clearEnv(t)
+
+	// Set nested fields via environment variables
+	t.Setenv("ENCLAVE_DATABASE_NESTED_FIELD", "env_value")
+	t.Setenv("ENCLAVE_DATABASE_OPTIONAL_INT", "100")
+
+	config := &ConfigWithNested{}
+	err := LoadAppConfig(config, "test-service", "1.0.0")
+
+	require.NoError(t, err)
+	assert.Equal(t, "env_value", config.Database.NestedField)
+	assert.Equal(t, 100, config.Database.OptionalInt)
+}
+
+func TestLoadAppConfig_MissingNestedRequiredField(t *testing.T) {
+	clearEnv(t)
+
+	config := &ConfigWithNested{}
+	err := LoadAppConfig(config, "test-service", "1.0.0")
+
+	require.Error(t, err)
+	var configErr ConfigError
+	assert.True(t, errors.As(err, &configErr))
+	assert.Contains(t, err.Error(), "Config is invalid")
+	assert.Contains(t, err.Error(), "NestedField")
+}
+
 // Helper function to clear relevant environment variables
 func clearEnv(t *testing.T) {
 	t.Helper()
@@ -281,6 +356,8 @@ func clearEnv(t *testing.T) {
 	os.Unsetenv("ENCLAVE_HUMAN_READABLE_OUTPUT")
 	os.Unsetenv("ENCLAVE_PRODUCTION_ENVIRONMENT")
 	os.Unsetenv("ENCLAVE_TEST_FIELD")
+	os.Unsetenv("ENCLAVE_DATABASE_NESTED_FIELD")
+	os.Unsetenv("ENCLAVE_DATABASE_OPTIONAL_INT")
 
 	// Reset global config
 	Cfg = &BaseConfig{}

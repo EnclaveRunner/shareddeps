@@ -110,11 +110,11 @@ func LoadAppConfig[T HasBaseConfig](
 	)
 
 	// Set base config defaults
-	viper.SetDefault("human_readable_output", false)
-	viper.SetDefault("log_level", "info")
+	v.SetDefault("human_readable_output", false)
+	v.SetDefault("log_level", "info")
 	//nolint:mnd // Default port for HTTP
-	viper.SetDefault("port", 8080)
-	viper.SetDefault("production_environment", true)
+	v.SetDefault("port", 8080)
+	v.SetDefault("production_environment", true)
 
 	// Set passed defaults
 	for _, def := range defaults {
@@ -143,8 +143,22 @@ func LoadAppConfig[T HasBaseConfig](
 	// 3. System-wide config (lowest precedence)
 	v.AddConfigPath("/etc/enclave")
 
+	// Read config file (it's okay if it doesn't exist)
+	if err := v.ReadInConfig(); err != nil {
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if errors.As(err, &configFileNotFoundError) {
+			log.Debug().Err(err).Msg("Config file not found")
+			// Config file not found; ignore error and use defaults/env vars
+		} else {
+			return ConfigError{
+				Msg: "Failed to load config file",
+				Err: err,
+			}
+		}
+	}
+
 	// Validate config
-	unmarshalErr := viper.Unmarshal(config)
+	unmarshalErr := v.Unmarshal(config)
 	if unmarshalErr != nil {
 		return ConfigError{
 			Msg: "Unable to decode into struct",
