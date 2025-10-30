@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/rs/zerolog"
@@ -27,36 +28,66 @@ func (b *BaseConfig) GetBase() *BaseConfig {
 	return b
 }
 
-func tryLoadFile(filename string, paths ...string) {
-	for _, path := range paths {
-		// Expand environment variables
-		expandedPath := os.ExpandEnv(path)
-		configPath := filepath.Join(expandedPath, filename)
-		if _, err := os.Stat(configPath); err == nil {
-			// File exists, try to load it
-			viper.SetConfigFile(configPath)
-			if err := viper.MergeInConfig(); err == nil {
-				return // Successfully loaded
-			} else {
-				log.Warn().Err(err).Str("file", configPath).Msg("Failed to load config file, trying next")
+var Cfg = &BaseConfig{}
 
-				continue
-			}
-		}
+type DefaultValue struct {
+	Key   string
+	Value string
+}
+
+type ConfigError struct {
+	Msg string
+	Err error
+}
+
+func (e ConfigError) Error() string {
+	return fmt.Sprintf("%s: %v", e.Msg, e.Err)
+}
+
+func (e ConfigError) Unwrap() error {
+	return e.Err
+}
+
+type ValidationError struct {
+	Err validator.FieldError
+}
+
+func (e ValidationError) Error() string {
+	switch e.Err.Tag() {
+	case "required":
+		return fmt.Sprintf("the '%s' field is required", e.Err.Field())
+	case "oneof":
+		return fmt.Sprintf(
+			"the '%s' field must be one of the following: %s",
+			e.Err.Field(),
+			e.Err.Param(),
+		)
+	case "min":
+		return fmt.Sprintf(
+			"the '%s' field must be at least %s",
+			e.Err.Field(),
+			e.Err.Param(),
+		)
+	case "max":
+		return fmt.Sprintf(
+			"Field '%s' must be at most %s",
+			e.Err.Field(),
+			e.Err.Param(),
+		)
+	case "numeric":
+		return fmt.Sprintf("Field '%s' must be a numeric value", e.Err.Field())
+	default:
+		return fmt.Sprintf("Field '%s' is invalid", e.Err.Field())
 	}
 }
 
-var errConfigLoading = errors.New("failed to load configuration")
-
-func configLoadingError(reason string, err error) error {
-	return fmt.Errorf("%w: %s: %w", errConfigLoading, reason, err)
+func (e ValidationError) Unwrap() error {
+	return e.Err
 }
-
-var Cfg = &BaseConfig{}
 
 func LoadAppConfig[T HasBaseConfig](
 	config T,
-	serviceName, version string,
+	serviceName, version string, defaults ...DefaultValue,
 ) error {
 	// Set logger fields
 	hostname, _ := os.Hostname()
@@ -72,21 +103,53 @@ func LoadAppConfig[T HasBaseConfig](
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
+	v := viper.NewWithOptions(
+		viper.ExperimentalBindStruct(),
+		viper.ExperimentalFinder(),
+		viper.EnvKeyReplacer(strings.NewReplacer(".", "_")),
+	)
+
+	// Set base config defaults
 	viper.SetDefault("human_readable_output", false)
 	viper.SetDefault("log_level", "info")
 	//nolint:mnd // Default port for HTTP
-	viper.SetDefault("port", 80)
+	viper.SetDefault("port", 8080)
 	viper.SetDefault("production_environment", true)
 
+	// Set passed defaults
+	for _, def := range defaults {
+		v.SetDefault(def.Key, def.Value)
+	}
+
+	// Configure environment variables
+	v.SetEnvPrefix("ENCLAVE")
+	v.AutomaticEnv()
+
 	// Configure enclave config file
-	tryLoadFile("config.yaml", "/etc/enclave", "$HOME/.enclave", ".")
-	tryLoadFile("config.json", "/etc/enclave", "$HOME/.enclave", ".")
-	tryLoadFile("config.toml", "/etc/enclave", "$HOME/.enclave", ".")
+	v.SetConfigName(serviceName + ".yml")
+	v.SetConfigType("yaml")
+
+	// Add config paths in order of precedence (last added has lowest
+	// precedence)
+	// 1. Current directory (highest precedence)
+	v.AddConfigPath(".")
+
+	// 2. Home directory
+	home, err := os.UserHomeDir()
+	if err == nil {
+		v.AddConfigPath(filepath.Join(home, ".enclave"))
+	}
+
+	// 3. System-wide config (lowest precedence)
+	v.AddConfigPath("/etc/enclave")
 
 	// Validate config
 	unmarshalErr := viper.Unmarshal(config)
 	if unmarshalErr != nil {
-		return configLoadingError("Unable to decode into struct", unmarshalErr)
+		return ConfigError{
+			Msg: "Unable to decode into struct",
+			Err: unmarshalErr,
+		}
 	}
 
 	validationErr := validator.New().Struct(config)
@@ -95,13 +158,19 @@ func LoadAppConfig[T HasBaseConfig](
 		if errors.As(validationErr, &validationErrors) {
 			formattedErrs := make([]error, 0, len(validationErrors))
 			for _, err := range validationErrors {
-				formattedErrs = append(formattedErrs, err)
+				formattedErrs = append(formattedErrs, ValidationError{Err: err})
 			}
 
-			return configLoadingError("config invalid", errors.Join(formattedErrs...))
+			return ConfigError{
+				Msg: "Config is invalid",
+				Err: errors.Join(formattedErrs...),
+			}
 		}
 
-		return configLoadingError("config invalid", validationErr)
+		return ConfigError{
+			Msg: "Config cannot be verified",
+			Err: validationErr,
+		}
 	}
 
 	// Set log level and human readable output
