@@ -373,7 +373,7 @@ database:
 
 			// Test with ExtendedConfig
 			config := &ExtendedConfig{}
-			err = LoadAppConfig(config, "testing", "v0.0.1")
+			err = LoadAppConfig(config, "testing", "v0.6.0")
 
 			if tt.expectError {
 				assert.Error(t, err)

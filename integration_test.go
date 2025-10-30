@@ -26,7 +26,7 @@ func startServer(t *testing.T, port int) {
 	err := os.WriteFile(tmpDir+"/policies.csv", []byte(""), 0o644)
 	assert.NoError(t, err)
 
-	shareddeps.Init(config.Cfg, "test-service", "v0.0.0")
+	shareddeps.Init(config.Cfg, "test-service", "v0.6.0")
 	shareddeps.AddAuth(
 		fileadapter.NewAdapter(tmpDir+"/policies.csv"),
 		shareddeps.Authentication{
