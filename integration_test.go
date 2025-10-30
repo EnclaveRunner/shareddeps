@@ -30,14 +30,16 @@ func startRESTServer(t *testing.T, port int) {
 	defer serverInitMu.Unlock()
 
 	// Apply per-test viper settings while holding the lock
-	viper.Set("port", port)
-	viper.Set("production_environment", false)
-	viper.Set("log_level", "debug")
-	viper.Set("human_readable_output", true)
+	defaults := []config.DefaultValue{
+		{Key: "port", Value: port},
+		{Key: "production_environment", Value: false},
+		{Key: "log_level", Value: "debug"},
+		{Key: "human_readable_output", Value: true},
+	}
 
 	// Create a new config instance for this test
 	cfg := &config.BaseConfig{Port: port}
-	shareddeps.InitRESTServer(cfg, "test-REST-service", "v0.6.0")
+	shareddeps.InitRESTServer(cfg, "test-REST-service", "v0.6.0", defaults...)
 	shareddeps.AddAuth(
 		fileadapter.NewAdapter(tmpDir+"/policies.csv"),
 		shareddeps.Authentication{
@@ -70,14 +72,16 @@ func startGRPCServer(t *testing.T, port int) {
 	serverInitMu.Lock()
 	defer serverInitMu.Unlock()
 
-	// Apply per-test viper settings while holding the lock
-	viper.Set("port", port)
-	viper.Set("log_level", "debug")
-	viper.Set("human_readable_output", true)
+	defaults := []config.DefaultValue{
+		{Key: "port", Value: port},
+		{Key: "production_environment", Value: false},
+		{Key: "log_level", Value: "debug"},
+		{Key: "human_readable_output", Value: true},
+	}
 
 	// Create a new config instance for this test
 	cfg := &config.BaseConfig{Port: port}
-	shareddeps.InitGRPCServer(cfg, "test-GRPC-service", "v0.6.0")
+	shareddeps.InitGRPCServer(cfg, "test-GRPC-service", "v0.6.0", defaults...)
 
 	pb.RegisterHealthServiceServer(
 		shareddeps.GRPCServer,

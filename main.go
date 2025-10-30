@@ -59,9 +59,9 @@ func InitRESTServer[T config.HasBaseConfig](
 
 func InitGRPCServer[T config.HasBaseConfig](
 	cfg T,
-	serviceName, version string,
+	serviceName, version string, defaultValues ...config.DefaultValue,
 ) {
-	err := config.LoadAppConfig(cfg, serviceName, version)
+	err := config.LoadAppConfig(cfg, serviceName, version, defaultValues...)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to load configuration")
 	}
