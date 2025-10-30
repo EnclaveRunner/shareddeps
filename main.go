@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strconv"
 
 	"github.com/EnclaveRunner/shareddeps/api"
 	"github.com/EnclaveRunner/shareddeps/auth"
