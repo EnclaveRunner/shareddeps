@@ -13,7 +13,6 @@ import (
 	"github.com/EnclaveRunner/shareddeps/config"
 	pb "github.com/EnclaveRunner/shareddeps/proto_gen"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
