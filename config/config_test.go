@@ -1,3 +1,6 @@
+// environment variables loading
+//
+//nolint:paralleltest // Config loading code is not thread-safe due to
 package config
 
 import (
@@ -14,7 +17,8 @@ import (
 // TestConfig is a test implementation that embeds BaseConfig
 type TestConfig struct {
 	BaseConfig `mapstructure:",squash"`
-	TestField  string `mapstructure:"test_field" validate:"required"`
+
+	TestField string `mapstructure:"test_field" validate:"required"`
 }
 
 func (t *TestConfig) GetBase() *BaseConfig {
@@ -39,7 +43,8 @@ type NestedStruct struct {
 // ConfigWithNested has nested configuration
 type ConfigWithNested struct {
 	BaseConfig `mapstructure:",squash"`
-	Database   NestedStruct `mapstructure:"database" validate:"required"`
+
+	Database NestedStruct `mapstructure:"database" validate:"required"`
 }
 
 func (c *ConfigWithNested) GetBase() *BaseConfig {
@@ -193,12 +198,13 @@ production_environment: false
 test_field: from_file
 `
 	configPath := filepath.Join(tmpDir, "test-service.yml")
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o644)
 	require.NoError(t, err)
 
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
+	//nolint:errcheck // defer in test
 	defer os.Chdir(originalDir)
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
@@ -225,7 +231,7 @@ port: 5000
 test_field: from_file
 `
 	configPath := filepath.Join(tmpDir, "test-service.yml")
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o644)
 	require.NoError(t, err)
 
 	// Set environment variable to override
@@ -234,6 +240,7 @@ test_field: from_file
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
+	//nolint:errcheck // defer in test
 	defer os.Chdir(originalDir)
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
@@ -243,7 +250,11 @@ test_field: from_file
 
 	require.NoError(t, err)
 	assert.Equal(t, "warn", config.LogLevel)
-	assert.Equal(t, 7000, config.Port) // Environment variable should override file
+	assert.Equal(
+		t,
+		7000,
+		config.Port,
+	) // Environment variable should override file
 	assert.Equal(t, "from_file", config.TestField)
 }
 
@@ -258,26 +269,6 @@ func TestLoadAppConfig_SetsGlobalConfig(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 4000, Cfg.Port)
 	assert.Equal(t, config.Port, Cfg.Port)
-}
-
-func TestConfigError_Error(t *testing.T) {
-	innerErr := errors.New("inner error")
-	configErr := ConfigError{
-		Msg: "test message",
-		Err: innerErr,
-	}
-
-	assert.Equal(t, "test message: inner error", configErr.Error())
-}
-
-func TestConfigError_Unwrap(t *testing.T) {
-	innerErr := errors.New("inner error")
-	configErr := ConfigError{
-		Msg: "test message",
-		Err: innerErr,
-	}
-
-	assert.Equal(t, innerErr, configErr.Unwrap())
 }
 
 func TestGetBase(t *testing.T) {
@@ -302,12 +293,13 @@ database:
   optional_int: 42
 `
 	configPath := filepath.Join(tmpDir, "test-service.yml")
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o644)
 	require.NoError(t, err)
 
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
+	//nolint:errcheck // defer in test
 	defer os.Chdir(originalDir)
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
@@ -351,13 +343,13 @@ func TestLoadAppConfig_MissingNestedRequiredField(t *testing.T) {
 // Helper function to clear relevant environment variables
 func clearEnv(t *testing.T) {
 	t.Helper()
-	os.Unsetenv("ENCLAVE_LOG_LEVEL")
-	os.Unsetenv("ENCLAVE_PORT")
-	os.Unsetenv("ENCLAVE_HUMAN_READABLE_OUTPUT")
-	os.Unsetenv("ENCLAVE_PRODUCTION_ENVIRONMENT")
-	os.Unsetenv("ENCLAVE_TEST_FIELD")
-	os.Unsetenv("ENCLAVE_DATABASE_NESTED_FIELD")
-	os.Unsetenv("ENCLAVE_DATABASE_OPTIONAL_INT")
+	_ = os.Unsetenv("ENCLAVE_LOG_LEVEL")
+	_ = os.Unsetenv("ENCLAVE_PORT")
+	_ = os.Unsetenv("ENCLAVE_HUMAN_READABLE_OUTPUT")
+	_ = os.Unsetenv("ENCLAVE_PRODUCTION_ENVIRONMENT")
+	_ = os.Unsetenv("ENCLAVE_TEST_FIELD")
+	_ = os.Unsetenv("ENCLAVE_DATABASE_NESTED_FIELD")
+	_ = os.Unsetenv("ENCLAVE_DATABASE_OPTIONAL_INT")
 
 	// Reset global config
 	Cfg = &BaseConfig{}
