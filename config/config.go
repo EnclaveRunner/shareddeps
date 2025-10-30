@@ -105,7 +105,6 @@ func LoadAppConfig[T HasBaseConfig](
 
 	v := viper.NewWithOptions(
 		viper.ExperimentalBindStruct(),
-		viper.ExperimentalFinder(),
 		viper.EnvKeyReplacer(strings.NewReplacer(".", "_")),
 	)
 
