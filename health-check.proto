@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "proto_gen/";
+
+package test;
+
+service HealthService {
+  rpc CheckHealth (HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+}
