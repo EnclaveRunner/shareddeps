@@ -89,7 +89,7 @@ func startGRPCServer(t *testing.T, port int) {
 }
 
 type server struct {
-	pb.HealthServiceServer
+	pb.UnimplementedHealthServiceServer
 }
 
 func (s *server) CheckHealth(
