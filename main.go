@@ -106,7 +106,7 @@ func StartRESTServer() {
 }
 
 // AddAuth adds authentication and authorization middleware to the REST-Server.
-// Must be called after InitRESTServer and before StartRestServer.
+// Must be called after InitRESTServer and before StartRESTServer.
 func AddAuth(
 	policyAdapter persist.Adapter,
 	authentication Authentication,
