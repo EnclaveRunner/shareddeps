@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/EnclaveRunner/shareddeps/api"
 	"github.com/EnclaveRunner/shareddeps/auth"
@@ -13,11 +14,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var RESTServer *gin.Engine
 
 var GRPCServer *grpc.Server
+
+var GRPCClient *grpc.ClientConn
 
 type Authentication struct {
 	BasicAuthenticator middleware.BasicAuthenticator
@@ -102,6 +106,21 @@ func StartRESTServer() {
 	if err := RESTServer.Run(addr); err != nil {
 		log.Fatal().Err(err).Msgf("Failed to start server on %s", addr)
 	}
+}
+
+// InitGRPCClient initializes a gRPC client connection to the specified host and
+// port.
+func InitGRPCClient(host string, port int) {
+	var err error
+	GRPCClient, err = grpc.NewClient(
+		fmt.Sprintf("%s:%d", host, port),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create gRPC client")
+	}
+	log.Info().
+		Msg("gRPC client initialized successfully on port: " + strconv.Itoa(port) + ", host: " + host)
 }
 
 // AddAuth adds authentication and authorization middleware to the REST-Server.
