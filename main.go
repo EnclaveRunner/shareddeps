@@ -120,7 +120,9 @@ func InitGRPCClient(host string, port int) {
 		log.Fatal().Err(err).Msg("Failed to create gRPC client")
 	}
 	log.Info().
-		Msg("gRPC client initialized successfully on port: " + strconv.Itoa(port) + ", host: " + host)
+		Int("port", port).
+		Str("host", host).
+		Msg("gRPC client initialized successfully")
 }
 
 // AddAuth adds authentication and authorization middleware to the REST-Server.
