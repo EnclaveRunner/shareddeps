@@ -8,7 +8,7 @@ require (
 	github.com/gin-contrib/authz v1.0.6
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-playground/validator/v10 v10.28.0
-	github.com/oapi-codegen/oapi-codegen/v2 v2.5.0
+	github.com/oapi-codegen/oapi-codegen/v2 v2.5.1
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/viper v1.21.0
