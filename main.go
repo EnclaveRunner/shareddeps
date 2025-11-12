@@ -13,11 +13,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var RESTServer *gin.Engine
 
 var GRPCServer *grpc.Server
+
+var GRPCClient *grpc.ClientConn
 
 type Authentication struct {
 	BasicAuthenticator middleware.BasicAuthenticator
@@ -102,6 +105,29 @@ func StartRESTServer() {
 	if err := RESTServer.Run(addr); err != nil {
 		log.Fatal().Err(err).Msgf("Failed to start server on %s", addr)
 	}
+}
+
+// InitGRPCClient initializes a gRPC client connection to the specified host and
+// port.
+func InitGRPCClient(host string, port int) {
+	// Close existing client connection if already initialized
+	if GRPCClient != nil {
+		if err := GRPCClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close existing gRPC client")
+		}
+	}
+	var err error
+	GRPCClient, err = grpc.NewClient(
+		fmt.Sprintf("%s:%d", host, port),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create gRPC client")
+	}
+	log.Info().
+		Int("port", port).
+		Str("host", host).
+		Msg("gRPC client initialized successfully")
 }
 
 // AddAuth adds authentication and authorization middleware to the REST-Server.
