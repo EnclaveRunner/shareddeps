@@ -110,6 +110,12 @@ func StartRESTServer() {
 // InitGRPCClient initializes a gRPC client connection to the specified host and
 // port.
 func InitGRPCClient(host string, port int) {
+	// Close existing client connection if already initialized
+	if GRPCClient != nil {
+		if err := GRPCClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close existing gRPC client")
+		}
+	}
 	var err error
 	GRPCClient, err = grpc.NewClient(
 		fmt.Sprintf("%s:%d", host, port),
