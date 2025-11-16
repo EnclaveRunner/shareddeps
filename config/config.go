@@ -55,29 +55,29 @@ type ValidationError struct {
 func (e ValidationError) Error() string {
 	switch e.Err.Tag() {
 	case "required":
-		return fmt.Sprintf("Field '%s' is required", e.Err.Field())
+		return fmt.Sprintf("Field '%s' is required", e.Err.Namespace())
 	case "oneof":
 		return fmt.Sprintf(
 			"Field '%s' must be one of the following: %s",
-			e.Err.Field(),
+			e.Err.Namespace(),
 			e.Err.Param(),
 		)
 	case "min":
 		return fmt.Sprintf(
 			"Field '%s' must be at least %s",
-			e.Err.Field(),
+			e.Err.Namespace(),
 			e.Err.Param(),
 		)
 	case "max":
 		return fmt.Sprintf(
 			"Field '%s' must be at most %s",
-			e.Err.Field(),
+			e.Err.Namespace(),
 			e.Err.Param(),
 		)
 	case "numeric":
-		return fmt.Sprintf("Field '%s' must be a numeric value", e.Err.Field())
+		return fmt.Sprintf("Field '%s' must be a numeric value", e.Err.Namespace())
 	default:
-		return fmt.Sprintf("Field '%s' is invalid", e.Err.Field())
+		return fmt.Sprintf("Field '%s' is invalid", e.Err.Namespace())
 	}
 }
 
