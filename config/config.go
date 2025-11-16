@@ -76,8 +76,10 @@ func (e ValidationError) Error() string {
 		)
 	case "numeric":
 		return fmt.Sprintf("Field '%s' must be a numeric value", e.Err.Namespace())
+	case "hostname|ip":
+		return fmt.Sprintf("Field '%s' must be a valid hostname or IP address", e.Err.Namespace())
 	default:
-		return fmt.Sprintf("Field '%s' is invalid", e.Err.Namespace())
+		return fmt.Sprintf("Field '%s' is invalid due to \"%s\" restriction", e.Err.Namespace(), e.Err.Tag())
 	}
 }
 
