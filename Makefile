@@ -51,6 +51,8 @@ verify:
 	@echo "Checking Build:"
 	go build -v ./...
 	go clean -testcache
+	@echo "Checking mod tidy"
+	go mod tidy
 	@echo "✅ CI Test will pass, you are ready to commit / open the PR! Thank you for your contribution :)"
 # Show help
 help:

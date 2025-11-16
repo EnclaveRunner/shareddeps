@@ -7,10 +7,6 @@ github.com/bytedance/sonic v1.14.1 h1:FBMC0zVz5XUmE4z9wF4Jey0An5FueFvOsTKKKtwIl7
 github.com/bytedance/sonic v1.14.1/go.mod h1:gi6uhQLMbTdeP0muCnrjHLeCUPyb70ujhnNlhOylAFc=
 github.com/bytedance/sonic/loader v0.3.0 h1:dskwH8edlzNMctoruo8FPTJDF3vLtDT0sXZwvZJyqeA=
 github.com/bytedance/sonic/loader v0.3.0/go.mod h1:N8A3vUdtUebEY2/VQC0MyhYeKUFosQU6FxH2JmUe6VI=
-github.com/casbin/casbin/v2 v2.128.0 h1:761dLmXLy/ZNSckAITvpUZ8VdrxARyIlwmdafHzRb7Y=
-github.com/casbin/casbin/v2 v2.128.0/go.mod h1:iAwqzcYzJtAK5QWGT2uRl9WfRxXyKFBG1AZuhk2NAQg=
-github.com/casbin/casbin/v2 v2.132.0 h1:73hGmOszGSL3hTVquwkAi98XLl3gPJ+BxB6D7G9Fxtk=
-github.com/casbin/casbin/v2 v2.132.0/go.mod h1:FmcfntdXLTcYXv/hxgNntcRPqAbwOG9xsism0yXT+18=
 github.com/casbin/casbin/v2 v2.134.0 h1:wyO3hZb487GzlGVAI2hUoHQT0ehFD+9B5P+HVG9BVTM=
 github.com/casbin/casbin/v2 v2.134.0/go.mod h1:FmcfntdXLTcYXv/hxgNntcRPqAbwOG9xsism0yXT+18=
 github.com/casbin/govaluate v1.3.0/go.mod h1:G/UnbIjZk/0uMNaLwZZmFQrR72tYRZWQkO70si/iR7A=
@@ -128,8 +124,6 @@ github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826/go.mod h1:TaXosZuwd
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
-github.com/oapi-codegen/oapi-codegen/v2 v2.5.0 h1:iJvF8SdB/3/+eGOXEpsWkD8FQAHj6mqkb6Fnsoc8MFU=
-github.com/oapi-codegen/oapi-codegen/v2 v2.5.0/go.mod h1:fwlMxUEMuQK5ih9aymrxKPQqNm2n8bdLk1ppjH+lr9w=
 github.com/oapi-codegen/oapi-codegen/v2 v2.5.1 h1:5vHNY1uuPBRBWqB2Dp0G7YB03phxLQZupZTIZaeorjc=
 github.com/oapi-codegen/oapi-codegen/v2 v2.5.1/go.mod h1:ro0npU1BWkcGpCgGD9QwPp44l5OIZ94tB3eabnT7DjQ=
 github.com/oapi-codegen/runtime v1.1.2 h1:P2+CubHq8fO4Q6fV1tqDBZHCwpVpvPg7oKiYzQgXIyI=
