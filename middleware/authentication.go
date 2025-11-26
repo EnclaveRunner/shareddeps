@@ -40,7 +40,6 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 			authenticatedUser = auth.UnauthenticatedUser
 		}
 
-		c.Request.SetBasicAuth(authenticatedUser, "")
 		auth.InsertAuthenticatedUser(c, authenticatedUser)
 
 		if authorizationFailed {

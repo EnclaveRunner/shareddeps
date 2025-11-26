@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/EnclaveRunner/shareddeps"
+	"github.com/EnclaveRunner/shareddeps/auth"
 	"github.com/EnclaveRunner/shareddeps/client"
 	"github.com/EnclaveRunner/shareddeps/config"
 	pb "github.com/EnclaveRunner/shareddeps/proto_gen"
@@ -39,16 +40,20 @@ func startRESTServer(t *testing.T, port int) {
 
 	// Create a new config instance for this test
 	cfg := &config.BaseConfig{Port: port}
-	shareddeps.InitRESTServer(cfg, "test-REST-service", "v0.6.0", defaults...)
+	shareddeps.PopulateAppConfig(cfg, "test-REST-service", "v0.6.0", defaults...)
+	server := shareddeps.InitRESTServer(cfg)
+	authModule := auth.NewModule(fileadapter.NewAdapter(tmpDir + "/policies.csv"))
+
 	shareddeps.AddAuth(
-		fileadapter.NewAdapter(tmpDir+"/policies.csv"),
+		server,
+		authModule,
 		shareddeps.Authentication{
 			BasicAuthenticator: func(ctx context.Context, username, password string) (string, error) {
 				return "test-user-id", nil
 			},
 		},
 	)
-	go shareddeps.StartRESTServer()
+	go shareddeps.StartRESTServer(cfg, server)
 	time.Sleep(3 * time.Second)
 }
 
@@ -81,21 +86,22 @@ func startGRPCServer(t *testing.T, port int) {
 
 	// Create a new config instance for this test
 	cfg := &config.BaseConfig{Port: port}
-	shareddeps.InitGRPCServer(cfg, "test-GRPC-service", "v0.6.0", defaults...)
+	shareddeps.PopulateAppConfig(cfg, "test-GRPC-service", "v0.6.0", defaults...)
+	server := shareddeps.InitGRPCServer()
 
 	pb.RegisterHealthServiceServer(
-		shareddeps.GRPCServer,
-		&server{},
+		server,
+		&healthServiceServer{},
 	)
-	go shareddeps.StartGRPCServer()
+	go shareddeps.StartGRPCServer(cfg, server)
 	time.Sleep(3 * time.Second)
 }
 
-type server struct {
+type healthServiceServer struct {
 	pb.UnimplementedHealthServiceServer
 }
 
-func (s *server) CheckHealth(
+func (s *healthServiceServer) CheckHealth(
 	ctx context.Context,
 	in *pb.HealthCheckRequest,
 ) (*pb.HealthCheckResponse, error) {

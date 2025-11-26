@@ -1,8 +1,6 @@
 //nolint:dupl // Duplicated code is reduced to a minimum with groupManager
 package auth
 
-var userGroupManager = newUserGroupManager()
-
 type UserGroup struct {
 	UserName  string
 	GroupName string
@@ -10,49 +8,55 @@ type UserGroup struct {
 
 // CreateUserGroup creates a new user group with the specified name.
 // If the group already exists, the function returns without error.
-func CreateUserGroup(groupName string) error {
-	return userGroupManager.CreateGroup(groupName)
+func (auth *AuthModule) CreateUserGroup(groupName string) error {
+	return auth.userGroupManager.CreateGroup(groupName)
 }
 
 // RemoveUserGroup removes a user group and all associated policies.
 // It prevents removal of the enclaveAdmin group to maintain system security.
-func RemoveUserGroup(groupName string) error {
-	return userGroupManager.RemoveGroup(groupName)
+func (auth *AuthModule) RemoveUserGroup(groupName string) error {
+	return auth.userGroupManager.RemoveGroup(groupName)
 }
 
 // GetUserGroups returns all user groups as a slice of UserGroup structs.
-func GetUserGroups() ([]UserGroup, error) {
-	return userGroupManager.GetGroups()
+func (auth *AuthModule) GetUserGroups() ([]UserGroup, error) {
+	return auth.userGroupManager.GetGroups()
 }
 
 // UserGroupExists checks if a user group with the specified name exists.
-func UserGroupExists(groupName string) (bool, error) {
-	return userGroupManager.GroupExists(groupName)
+func (auth *AuthModule) UserGroupExists(groupName string) (bool, error) {
+	return auth.userGroupManager.GroupExists(groupName)
 }
 
 // AddUserToGroup adds a user to one or more groups.
 // It validates that all specified groups exist before adding the user.
-func AddUserToGroup(userName string, groupName ...string) error {
-	return userGroupManager.AddToGroup(userName, groupName...)
+func (auth *AuthModule) AddUserToGroup(
+	userName string,
+	groupName ...string,
+) error {
+	return auth.userGroupManager.AddToGroup(userName, groupName...)
 }
 
 // RemoveUserFromGroup removes a user from one or more groups.
 // It validates that all specified groups exist before removing the user.
-func RemoveUserFromGroup(userName string, groupName ...string) error {
-	return userGroupManager.RemoveFromGroup(userName, groupName...)
+func (auth *AuthModule) RemoveUserFromGroup(
+	userName string,
+	groupName ...string,
+) error {
+	return auth.userGroupManager.RemoveFromGroup(userName, groupName...)
 }
 
 // RemoveUser removes a user from all groups they belong to.
-func RemoveUser(userName string) error {
-	return userGroupManager.RemoveEntity(userName)
+func (auth *AuthModule) RemoveUser(userName string) error {
+	return auth.userGroupManager.RemoveEntity(userName)
 }
 
 // GetGroupsForUser returns all groups that a specific user belongs to.
-func GetGroupsForUser(userName string) ([]string, error) {
-	return userGroupManager.GetGroupsForEntity(userName)
+func (auth *AuthModule) GetGroupsForUser(userName string) ([]string, error) {
+	return auth.userGroupManager.GetGroupsForEntity(userName)
 }
 
 // GetUserGroup returns all users that belong to a specific group.
-func GetUserGroup(groupName string) ([]string, error) {
-	return userGroupManager.GetEntitiesInGroup(groupName)
+func (auth *AuthModule) GetUserGroup(groupName string) ([]string, error) {
+	return auth.userGroupManager.GetEntitiesInGroup(groupName)
 }

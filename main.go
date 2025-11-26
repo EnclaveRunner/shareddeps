@@ -9,115 +9,94 @@ import (
 	"github.com/EnclaveRunner/shareddeps/auth"
 	"github.com/EnclaveRunner/shareddeps/config"
 	"github.com/EnclaveRunner/shareddeps/middleware"
-	"github.com/casbin/casbin/v2/persist"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var RESTServer *gin.Engine
-
-var GRPCServer *grpc.Server
-
-var GRPCClient *grpc.ClientConn
-
 type Authentication struct {
 	BasicAuthenticator middleware.BasicAuthenticator
 }
 
-// GetConfig is the main function for consumers to load and get their
-// configuration.
-// It takes a pointer to any struct type that defines the configuration schema.
-// The struct should have appropriate mapstructure and validate tags.
-// Must be called before Init.
-func InitRESTServer[T config.HasBaseConfig](
+func PopulateAppConfig[T config.HasBaseConfig](
 	cfg T,
 	serviceName, version string, defaultValues ...config.DefaultValue,
 ) {
-	err := config.LoadAppConfig(cfg, serviceName, version, defaultValues...)
+	err := config.PopulateAppConfig(cfg, serviceName, version, defaultValues...)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to load configuration")
+		log.Fatal().Err(err).Msg("Failed to populate application config")
 	}
+}
 
-	if config.Cfg.ProductionEnvironment {
+func InitRESTServer(cfg config.HasBaseConfig) *gin.Engine {
+	if cfg.GetBase().ProductionEnvironment {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	RESTServer = gin.New()
+	restServer := gin.New()
 
 	// Add recovery middleware
-	RESTServer.Use(gin.Recovery())
+	restServer.Use(gin.Recovery())
 
 	// Add our custom zerolog middleware
-	RESTServer.Use(middleware.Zerolog())
+	restServer.Use(middleware.Zerolog())
 
 	server := api.NewServer()
 	handler := api.NewStrictHandler(server, nil)
-	api.RegisterHandlers(RESTServer, handler)
+	api.RegisterHandlers(restServer, handler)
 
 	log.Info().Msg("Server initialized with middleware")
+
+	return restServer
 }
 
-func InitGRPCServer[T config.HasBaseConfig](
-	cfg T,
-	serviceName, version string, defaultValues ...config.DefaultValue,
-) {
-	err := config.LoadAppConfig(cfg, serviceName, version, defaultValues...)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to load configuration")
-	}
-
+func InitGRPCServer() *grpc.Server {
 	// create the gRPC server and assign to the package-level variable
-	GRPCServer = grpc.NewServer()
+	grpcServer := grpc.NewServer()
 
 	log.Info().Msg("gRPC server initialized")
+
+	return grpcServer
 }
 
-func StartGRPCServer() {
+func StartGRPCServer(cfg config.HasBaseConfig, server *grpc.Server) {
 	lc := net.ListenConfig{}
 	lis, err := lc.Listen(
 		context.Background(),
 		"tcp",
-		fmt.Sprintf(":%d", config.Cfg.Port),
+		fmt.Sprintf(":%d", cfg.GetBase().Port),
 	)
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Int("port", config.Cfg.Port).
+			Int("port", cfg.GetBase().Port).
 			Msg("Failed to create gRPC listener")
 	}
 
 	log.Info().
-		Int("port", config.Cfg.Port).
+		Int("port", cfg.GetBase().Port).
 		Msg("Setup finished. Starting to listen")
-	addr := fmt.Sprintf(":%d", config.Cfg.Port)
-	if err := GRPCServer.Serve(lis); err != nil {
+	addr := fmt.Sprintf(":%d", cfg.GetBase().Port)
+	if err := server.Serve(lis); err != nil {
 		log.Fatal().Err(err).Msgf("Failed to start gRPC server on %s", addr)
 	}
 }
 
-func StartRESTServer() {
+func StartRESTServer(cfg config.HasBaseConfig, server *gin.Engine) {
 	log.Info().
-		Int("port", config.Cfg.Port).
+		Int("port", cfg.GetBase().Port).
 		Msg("Setup finished. Starting to listen")
-	addr := fmt.Sprintf(":%d", config.Cfg.Port)
-	if err := RESTServer.Run(addr); err != nil {
+	addr := fmt.Sprintf(":%d", cfg.GetBase().Port)
+	if err := server.Run(addr); err != nil {
 		log.Fatal().Err(err).Msgf("Failed to start server on %s", addr)
 	}
 }
 
 // InitGRPCClient initializes a gRPC client connection to the specified host and
 // port.
-func InitGRPCClient(host string, port int) {
-	// Close existing client connection if already initialized
-	if GRPCClient != nil {
-		if err := GRPCClient.Close(); err != nil {
-			log.Error().Err(err).Msg("Failed to close existing gRPC client")
-		}
-	}
-	var err error
-	GRPCClient, err = grpc.NewClient(
+func InitGRPCClient(host string, port int) *grpc.ClientConn {
+	client, err := grpc.NewClient(
 		fmt.Sprintf("%s:%d", host, port),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -128,30 +107,32 @@ func InitGRPCClient(host string, port int) {
 		Int("port", port).
 		Str("host", host).
 		Msg("gRPC client initialized successfully")
+
+	return client
 }
 
 // AddAuth adds authentication and authorization middleware to the REST-Server.
 // Must be called after InitRESTServer and before StartRESTServer.
 func AddAuth(
-	policyAdapter persist.Adapter,
+	server *gin.Engine,
+	authModule auth.AuthModule,
 	authentication Authentication,
 ) {
-	enforcer := auth.InitAuth(policyAdapter)
-	RESTServer.Use(middleware.Authentication(authentication.BasicAuthenticator))
-	RESTServer.Use(middleware.Authz(enforcer))
+	server.Use(middleware.Authentication(authentication.BasicAuthenticator))
+	server.Use(authModule.Middleware())
 
 	// Add policy to allow health checks without authentication
-	err := auth.CreateResourceGroup("health_INTERNAL")
+	err := authModule.CreateResourceGroup("health_INTERNAL")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create health_INTERNAL resource group")
 	}
-	err = auth.AddResourceToGroup("/health", "health_INTERNAL")
+	err = authModule.AddResourceToGroup("/health", "health_INTERNAL")
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Msg("Failed to add /health to health_INTERNAL resource group")
 	}
-	err = auth.AddPolicy("*", "health_INTERNAL", "GET")
+	err = authModule.AddPolicy("*", "health_INTERNAL", "GET")
 	if err != nil {
 		log.Fatal().
 			Err(err).

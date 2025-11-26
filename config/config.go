@@ -28,8 +28,6 @@ func (b *BaseConfig) GetBase() *BaseConfig {
 	return b
 }
 
-var Cfg = &BaseConfig{}
-
 type DefaultValue struct {
 	Key   string
 	Value any
@@ -94,7 +92,7 @@ func (e ValidationError) Unwrap() error {
 	return e.Err
 }
 
-func LoadAppConfig[T HasBaseConfig](
+func PopulateAppConfig[T HasBaseConfig](
 	config T,
 	serviceName, version string, defaults ...DefaultValue,
 ) error {
@@ -212,8 +210,6 @@ func LoadAppConfig[T HasBaseConfig](
 			zerolog.ConsoleWriter{Out: os.Stdout, NoColor: false},
 		)
 	}
-
-	*Cfg = *config.GetBase()
 
 	return nil
 }

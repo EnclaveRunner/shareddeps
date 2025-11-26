@@ -2,6 +2,8 @@ package auth
 
 import (
 	"fmt"
+
+	"github.com/casbin/casbin/v2"
 )
 
 // GroupType represents the policy type for different group kinds
@@ -42,10 +44,11 @@ type groupManager[T group] struct {
 	groupName       string
 	nullName        string
 	createGroupFunc func(T, []string) T
+	enforcer        *casbin.Enforcer
 }
 
 // newUserGroupManager creates a manager for user groups
-func newUserGroupManager() *groupManager[UserGroup] {
+func newUserGroupManager(enforcer *casbin.Enforcer) *groupManager[UserGroup] {
 	return &groupManager[UserGroup]{
 		groupType: UserGroupType,
 		groupName: "userGroup",
@@ -56,11 +59,14 @@ func newUserGroupManager() *groupManager[UserGroup] {
 				GroupName: data[1],
 			}
 		},
+		enforcer: enforcer,
 	}
 }
 
 // newResourceGroupManager creates a manager for resource groups
-func newResourceGroupManager() *groupManager[ResourceGroup] {
+func newResourceGroupManager(
+	enforcer *casbin.Enforcer,
+) *groupManager[ResourceGroup] {
 	return &groupManager[ResourceGroup]{
 		groupType: ResourceGroupType,
 		groupName: "resourceGroup",
@@ -71,6 +77,7 @@ func newResourceGroupManager() *groupManager[ResourceGroup] {
 				GroupName:    data[1],
 			}
 		},
+		enforcer: enforcer,
 	}
 }
 
@@ -86,7 +93,7 @@ func (gm *groupManager[T]) CreateGroup(groupName string) error {
 		return nil
 	}
 
-	_, err = enforcer.AddNamedGroupingPolicy(
+	_, err = gm.enforcer.AddNamedGroupingPolicy(
 		string(gm.groupType),
 		gm.nullName,
 		groupName,
@@ -95,7 +102,7 @@ func (gm *groupManager[T]) CreateGroup(groupName string) error {
 		return &CasbinError{"CreateGroup", err}
 	}
 
-	err = enforcer.SavePolicy()
+	err = gm.enforcer.SavePolicy()
 	if err != nil {
 		return &CasbinError{"CreateGroup", err}
 	}
@@ -118,7 +125,7 @@ func (gm *groupManager[T]) RemoveGroup(groupName string) error {
 		return &NotFoundError{gm.groupName, groupName}
 	}
 
-	_, err = enforcer.RemoveFilteredNamedGroupingPolicy(
+	_, err = gm.enforcer.RemoveFilteredNamedGroupingPolicy(
 		string(gm.groupType),
 		1,
 		groupName,
@@ -127,12 +134,12 @@ func (gm *groupManager[T]) RemoveGroup(groupName string) error {
 		return &CasbinError{"RemoveGroup", err}
 	}
 
-	_, err = enforcer.RemoveFilteredPolicy(0, groupName)
+	_, err = gm.enforcer.RemoveFilteredPolicy(0, groupName)
 	if err != nil {
 		return &CasbinError{"RemoveGroup", err}
 	}
 
-	err = enforcer.SavePolicy()
+	err = gm.enforcer.SavePolicy()
 	if err != nil {
 		return &CasbinError{"RemoveGroup", err}
 	}
@@ -142,7 +149,7 @@ func (gm *groupManager[T]) RemoveGroup(groupName string) error {
 
 // GetGroups returns all groups as a slice of group structs.
 func (gm *groupManager[T]) GetGroups() ([]T, error) {
-	groups, err := enforcer.GetNamedGroupingPolicy(string(gm.groupType))
+	groups, err := gm.enforcer.GetNamedGroupingPolicy(string(gm.groupType))
 	if err != nil {
 		return nil, &CasbinError{"GetGroups", err}
 	}
@@ -158,7 +165,7 @@ func (gm *groupManager[T]) GetGroups() ([]T, error) {
 
 // GroupExists checks if a group with the specified name exists.
 func (gm *groupManager[T]) GroupExists(groupName string) (bool, error) {
-	filtered, err := enforcer.GetFilteredNamedGroupingPolicy(
+	filtered, err := gm.enforcer.GetFilteredNamedGroupingPolicy(
 		string(gm.groupType),
 		1,
 		groupName,
@@ -196,7 +203,7 @@ func (gm *groupManager[T]) AddToGroup(
 		groupingPolicies[i] = []string{entityName, group}
 	}
 
-	_, err := enforcer.AddNamedGroupingPolicies(
+	_, err := gm.enforcer.AddNamedGroupingPolicies(
 		string(gm.groupType),
 		groupingPolicies,
 	)
@@ -204,7 +211,7 @@ func (gm *groupManager[T]) AddToGroup(
 		return &CasbinError{"AddToGroup", err}
 	}
 
-	err = enforcer.SavePolicy()
+	err = gm.enforcer.SavePolicy()
 	if err != nil {
 		return &CasbinError{"AddToGroup", err}
 	}
@@ -238,7 +245,7 @@ func (gm *groupManager[T]) RemoveFromGroup(
 		groupingPolicies[i] = []string{entityName, group}
 	}
 
-	_, err := enforcer.RemoveNamedGroupingPolicies(
+	_, err := gm.enforcer.RemoveNamedGroupingPolicies(
 		string(gm.groupType),
 		groupingPolicies,
 	)
@@ -246,7 +253,7 @@ func (gm *groupManager[T]) RemoveFromGroup(
 		return &CasbinError{"RemoveFromGroup", err}
 	}
 
-	err = enforcer.SavePolicy()
+	err = gm.enforcer.SavePolicy()
 	if err != nil {
 		return &CasbinError{"RemoveFromGroup", err}
 	}
@@ -260,7 +267,7 @@ func (gm *groupManager[T]) RemoveEntity(entityName string) error {
 		return &ConflictError{fmt.Sprintf("Name %s is reserved", entityName)}
 	}
 
-	_, err := enforcer.RemoveFilteredNamedGroupingPolicy(
+	_, err := gm.enforcer.RemoveFilteredNamedGroupingPolicy(
 		string(gm.groupType),
 		0,
 		entityName,
@@ -269,7 +276,7 @@ func (gm *groupManager[T]) RemoveEntity(entityName string) error {
 		return &CasbinError{"RemoveEntity", err}
 	}
 
-	err = enforcer.SavePolicy()
+	err = gm.enforcer.SavePolicy()
 	if err != nil {
 		return &CasbinError{"RemoveEntity", err}
 	}
@@ -281,7 +288,7 @@ func (gm *groupManager[T]) RemoveEntity(entityName string) error {
 func (gm *groupManager[T]) GetGroupsForEntity(
 	entityName string,
 ) ([]string, error) {
-	entityGroups, err := enforcer.GetFilteredNamedGroupingPolicy(
+	entityGroups, err := gm.enforcer.GetFilteredNamedGroupingPolicy(
 		string(gm.groupType),
 		0,
 		entityName,
@@ -310,7 +317,7 @@ func (gm *groupManager[T]) GetEntitiesInGroup(
 		return nil, &NotFoundError{gm.groupName, groupName}
 	}
 
-	entityGroups, err := enforcer.GetFilteredNamedGroupingPolicy(
+	entityGroups, err := gm.enforcer.GetFilteredNamedGroupingPolicy(
 		string(gm.groupType),
 		1,
 		groupName,

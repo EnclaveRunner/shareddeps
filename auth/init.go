@@ -9,12 +9,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var enforcer *casbin.Enforcer
+type AuthModule struct {
+	enforcer             *casbin.Enforcer
+	resourceGroupManager *groupManager[ResourceGroup]
+	userGroupManager     *groupManager[UserGroup]
+}
 
-// InitAuth initializes the casbin enforcer with the provided adapter and sets
+// NewModule initializes the casbin enforcer with the provided adapter and sets
 // up default policies. It creates the casbin model, loads policies, and ensures
 // the enclaveAdmin group and policy exist.
-func InitAuth(adapter persist.Adapter) *casbin.Enforcer {
+func NewModule(adapter persist.Adapter) AuthModule {
 	modelContent := `
 		[request_definition]
 		r = sub, obj, act
@@ -38,7 +42,7 @@ func InitAuth(adapter persist.Adapter) *casbin.Enforcer {
 		log.Fatal().Err(err).Msg("Failed to create casbin model from string")
 	}
 
-	enforcer, err = casbin.NewEnforcer(m, adapter)
+	enforcer, err := casbin.NewEnforcer(m, adapter)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create casbin enforcer")
 	}
@@ -97,5 +101,9 @@ func InitAuth(adapter persist.Adapter) *casbin.Enforcer {
 
 	log.Debug().Msg("Casbin enforcer initialized")
 
-	return enforcer
+	return AuthModule{
+		enforcer:             enforcer,
+		resourceGroupManager: newResourceGroupManager(enforcer),
+		userGroupManager:     newUserGroupManager(enforcer),
+	}
 }

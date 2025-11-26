@@ -11,9 +11,11 @@ type Policy struct {
 // It checks if the user group and resource group exist before adding the policy
 // and throws if they
 // do not.
-func AddPolicy(userGroup, resourceGroup, method string) error {
+func (auth *AuthModule) AddPolicy(
+	userGroup, resourceGroup, method string,
+) error {
 	if userGroup != "*" {
-		ugExists, err := UserGroupExists(userGroup)
+		ugExists, err := auth.UserGroupExists(userGroup)
 		if err != nil {
 			return err
 		}
@@ -23,7 +25,7 @@ func AddPolicy(userGroup, resourceGroup, method string) error {
 	}
 
 	if resourceGroup != "*" {
-		rgExists, err := ResourceGroupExists(resourceGroup)
+		rgExists, err := auth.ResourceGroupExists(resourceGroup)
 		if err != nil {
 			return err
 		}
@@ -32,7 +34,7 @@ func AddPolicy(userGroup, resourceGroup, method string) error {
 		}
 	}
 
-	filteredPolicies, err := enforcer.GetFilteredPolicy(
+	filteredPolicies, err := auth.enforcer.GetFilteredPolicy(
 		0,
 		userGroup,
 		resourceGroup,
@@ -45,12 +47,12 @@ func AddPolicy(userGroup, resourceGroup, method string) error {
 		return nil
 	}
 
-	_, err = enforcer.AddPolicy(userGroup, resourceGroup, method)
+	_, err = auth.enforcer.AddPolicy(userGroup, resourceGroup, method)
 	if err != nil {
 		return &CasbinError{"AddPolicy", err}
 	}
 
-	err = enforcer.SavePolicy()
+	err = auth.enforcer.SavePolicy()
 	if err != nil {
 		return &CasbinError{"AddPolicy", err}
 	}
@@ -58,8 +60,8 @@ func AddPolicy(userGroup, resourceGroup, method string) error {
 	return nil
 }
 
-func ListPolicies() ([]Policy, error) {
-	rawPolicies, err := enforcer.GetPolicy()
+func (auth *AuthModule) ListPolicies() ([]Policy, error) {
+	rawPolicies, err := auth.enforcer.GetPolicy()
 	if err != nil {
 		return nil, &CasbinError{"GetPolicy", err}
 	}
@@ -82,17 +84,19 @@ func ListPolicies() ([]Policy, error) {
 // It prevents the removal of the enclaveAdmin policy to ensure that
 // enclaveAdmins always have full
 // access.
-func RemovePolicy(userGroup, resourceGroup, method string) error {
+func (auth *AuthModule) RemovePolicy(
+	userGroup, resourceGroup, method string,
+) error {
 	if userGroup == enclaveAdminGroup && resourceGroup == "*" && method == "*" {
 		return &ConflictError{"The provided policy cannot be removed"}
 	}
 
-	_, err := enforcer.RemovePolicy(userGroup, resourceGroup, method)
+	_, err := auth.enforcer.RemovePolicy(userGroup, resourceGroup, method)
 	if err != nil {
 		return &CasbinError{"RemovePolicy", err}
 	}
 
-	err = enforcer.SavePolicy()
+	err = auth.enforcer.SavePolicy()
 	if err != nil {
 		return &CasbinError{"RemovePolicy", err}
 	}
