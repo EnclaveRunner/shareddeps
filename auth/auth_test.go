@@ -14,8 +14,8 @@ import (
 
 const (
 	enclaveAdminGroup = "enclave_admin"
-	nullUser		  = "null_user"
-	nullResource	  = "null_resource"
+	nullUser          = "null_user"
+	nullResource      = "null_resource"
 )
 
 func setupTestAuth(t *testing.T) auth.AuthModule {
@@ -455,11 +455,11 @@ func TestAddResourceToGroup(t *testing.T) {
 			errType:      &auth.NotFoundError{},
 		},
 		{
-			name: "add null resource to group",
+			name:         "add null resource to group",
 			resourceName: nullResource,
-			groupNames: []string{"testResourceGroup1"},
-			wantErr: true,
-			errType: &auth.ConflictError{},
+			groupNames:   []string{"testResourceGroup1"},
+			wantErr:      true,
+			errType:      &auth.ConflictError{},
 		},
 	}
 
