@@ -40,7 +40,7 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 			authenticatedUser = auth.UnauthenticatedUser
 		}
 
-		auth.InsertAuthenticatedUser(c, authenticatedUser)
+		auth.SetAuthenticatedUser(c, authenticatedUser)
 
 		if authorizationFailed {
 			// Authentication failed. Return 401 and abort the request.

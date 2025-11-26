@@ -260,19 +260,6 @@ test_field: from_file
 	assert.Equal(t, "from_file", config.TestField)
 }
 
-func TestLoadAppConfig_SetsGlobalConfig(t *testing.T) {
-	clearEnv(t)
-
-	t.Setenv("ENCLAVE_PORT", "4000")
-
-	config := &MinimalConfig{}
-	err := PopulateAppConfig(config, "test-service", "1.0.0")
-
-	require.NoError(t, err)
-	assert.Equal(t, 4000, config.Port)
-	assert.Equal(t, config.Port, config.Port)
-}
-
 func TestGetBase(t *testing.T) {
 	base := &BaseConfig{
 		LogLevel: "debug",

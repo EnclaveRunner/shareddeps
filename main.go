@@ -52,7 +52,7 @@ func InitRESTServer(cfg config.HasBaseConfig) *gin.Engine {
 }
 
 func InitGRPCServer() *grpc.Server {
-	// create the gRPC server and assign to the package-level variable
+	// create the gRPC server
 	grpcServer := grpc.NewServer()
 
 	log.Info().Msg("gRPC server initialized")

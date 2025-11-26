@@ -9,7 +9,7 @@ import (
 
 func (auth *AuthModule) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user := RetrieveAuthenticatedUser(c)
+		user := GetAuthenticatedUser(c)
 		method := c.Request.Method
 		path := c.Request.URL.Path
 

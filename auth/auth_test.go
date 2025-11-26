@@ -2,6 +2,7 @@
 package auth_test
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -860,4 +861,27 @@ func BenchmarkAddPolicy(b *testing.B) {
 		err = authModule.RemovePolicy("benchUserGroup", "benchResourceGroup", "GET")
 		require.NoError(b, err)
 	}
+}
+
+func TestSetAuthenticatedUser(t *testing.T) {
+	t.Parallel()
+
+	user := "testUserID"
+
+	r := &http.Request{}
+	r = r.WithContext(auth.SetAuthenticatedUser(r.Context(), user))
+
+	actual := auth.GetAuthenticatedUser(r.Context())
+
+	assert.Equal(t, user, actual)
+}
+
+func TestGetAuthenticatedUser_Unauthenticated(t *testing.T) {
+	t.Parallel()
+
+	r := &http.Request{}
+
+	actual := auth.GetAuthenticatedUser(r.Context())
+
+	assert.Equal(t, auth.UnauthenticatedUser, actual)
 }
