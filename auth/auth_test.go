@@ -1,21 +1,27 @@
-// enforcer
-//
-// enforcer state
-//
-//nolint:paralleltest,dupl,gosec // Tests are not run in parallel due to global
-package auth
+//nolint:gosec,dupl // Test code
+package auth_test
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/EnclaveRunner/shareddeps/auth"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestAdapter(t *testing.T) *fileadapter.Adapter {
+const (
+	enclaveAdminGroup = "enclave_admin"
+	nullUser          = "null_user"
+	nullResource      = "null_resource"
+)
+
+func setupTestAuth(t *testing.T) auth.AuthModule {
+	t.Helper()
+
 	// Create a temporary file for testing
 	tempDir := t.TempDir()
 	tempFile := filepath.Join(tempDir, "test_policy.csv")
@@ -27,30 +33,25 @@ func setupTestAdapter(t *testing.T) *fileadapter.Adapter {
 	require.NoError(t, err)
 
 	adapter := fileadapter.NewAdapter(tempFile)
+	authModule := auth.NewModule(adapter)
 
-	return adapter
+	return authModule
 }
 
 func TestInitAuth(t *testing.T) {
-	adapter := setupTestAdapter(t)
+	t.Parallel()
 
-	// Initialize auth
-	enforcer := InitAuth(adapter)
+	authModule := setupTestAuth(t)
 
-	// Verify enforcer is not nil
-	require.NotNil(t, enforcer)
-
-	// Verify the global enforcer is set
-	assert.NotNil(t, enforcer)
-
+	// Verify the auth module is properly initialized
 	// Verify that enclaveAdmin policy exists
-	policies, err := enforcer.GetPolicy()
+	policies, err := authModule.ListPolicies()
 	require.NoError(t, err)
 
 	foundAdminPolicy := false
 	for _, policy := range policies {
-		if len(policy) >= 3 && policy[0] == enclaveAdminGroup && policy[1] == "*" &&
-			policy[2] == "*" {
+		if policy.UserGroup == enclaveAdminGroup && policy.ResourceGroup == "*" &&
+			policy.Permission == "*" {
 			foundAdminPolicy = true
 
 			break
@@ -58,25 +59,16 @@ func TestInitAuth(t *testing.T) {
 	}
 	assert.True(t, foundAdminPolicy, "enclave_admin policy should exist")
 
-	// Verify that nullUser is in enclaveAdmin group
-	userGroups, err := enforcer.GetNamedGroupingPolicy("g")
-	require.NoError(t, err)
-
-	foundAdminGroup := false
-	for _, group := range userGroups {
-		if len(group) >= 2 && group[0] == nullUser &&
-			group[1] == enclaveAdminGroup {
-			foundAdminGroup = true
-
-			break
-		}
-	}
-	assert.True(t, foundAdminGroup, "nullUser should be in enclave_admin group")
+	// Verify that enclave_admin group is empty
+	userGroups, err := authModule.GetUserGroup(enclaveAdminGroup)
+	assert.NoError(t, err)
+	assert.Empty(t, userGroups, "enclave_admin group should be empty")
 }
 
 func TestCreateUserGroup(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
+	t.Parallel()
+
+	authModule := setupTestAuth(t)
 
 	testCases := []struct {
 		name      string
@@ -102,18 +94,20 @@ func TestCreateUserGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := CreateUserGroup(tc.groupName)
+			t.Parallel()
+
+			err := authModule.CreateUserGroup(tc.groupName)
 			if tc.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 
 				// Verify group exists
-				exists, err := UserGroupExists(tc.groupName)
+				exists, err := authModule.UserGroupExists(tc.groupName)
 				assert.NoError(t, err)
 				assert.True(t, exists)
 
-				assignedGroups, err := GetUserGroup(tc.groupName)
+				assignedGroups, err := authModule.GetUserGroup(tc.groupName)
 				assert.NoError(t, err)
 				assert.Len(t, assignedGroups, 0)
 			}
@@ -122,12 +116,7 @@ func TestCreateUserGroup(t *testing.T) {
 }
 
 func TestRemoveUserGroup(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
-
-	// Create a test group
-	err := CreateUserGroup("testRemoveGroup")
-	require.NoError(t, err)
+	t.Parallel()
 
 	testCases := []struct {
 		name      string
@@ -144,19 +133,29 @@ func TestRemoveUserGroup(t *testing.T) {
 			name:      "remove non-existing group",
 			groupName: "nonExistentGroup",
 			wantErr:   true,
-			errType:   &NotFoundError{},
+			errType:   &auth.NotFoundError{},
 		},
 		{
 			name:      "cannot remove enclave_admin group",
 			groupName: enclaveAdminGroup,
 			wantErr:   true,
-			errType:   &ConflictError{},
+			errType:   &auth.ConflictError{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := RemoveUserGroup(tc.groupName)
+			t.Parallel()
+
+			authModule := setupTestAuth(t)
+
+			// Create a test group for the removal test
+			if tc.groupName == "testRemoveGroup" {
+				err := authModule.CreateUserGroup("testRemoveGroup")
+				require.NoError(t, err)
+			}
+
+			err := authModule.RemoveUserGroup(tc.groupName)
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
@@ -166,7 +165,7 @@ func TestRemoveUserGroup(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Verify group no longer exists
-				exists, err := UserGroupExists(tc.groupName)
+				exists, err := authModule.UserGroupExists(tc.groupName)
 				assert.NoError(t, err)
 				assert.False(t, exists)
 			}
@@ -175,14 +174,7 @@ func TestRemoveUserGroup(t *testing.T) {
 }
 
 func TestAddUserToGroup(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
-
-	// Create test groups
-	err := CreateUserGroup("testGroup1")
-	require.NoError(t, err)
-	err = CreateUserGroup("testGroup2")
-	require.NoError(t, err)
+	t.Parallel()
 
 	testCases := []struct {
 		name       string
@@ -208,20 +200,30 @@ func TestAddUserToGroup(t *testing.T) {
 			userName:   "testUser3",
 			groupNames: []string{"nonExistentGroup"},
 			wantErr:    true,
-			errType:    &NotFoundError{},
+			errType:    &auth.NotFoundError{},
 		},
 		{
 			name:       "cannot add nullUser",
 			userName:   nullUser,
 			groupNames: []string{"testGroup1"},
 			wantErr:    true,
-			errType:    &ConflictError{},
+			errType:    &auth.ConflictError{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := AddUserToGroup(tc.userName, tc.groupNames...)
+			t.Parallel()
+
+			authModule := setupTestAuth(t)
+
+			// Create test groups
+			err := authModule.CreateUserGroup("testGroup1")
+			require.NoError(t, err)
+			err = authModule.CreateUserGroup("testGroup2")
+			require.NoError(t, err)
+
+			err = authModule.AddUserToGroup(tc.userName, tc.groupNames...)
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
@@ -231,7 +233,7 @@ func TestAddUserToGroup(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Verify user is in groups
-				userGroups, err := GetGroupsForUser(tc.userName)
+				userGroups, err := authModule.GetGroupsForUser(tc.userName)
 				assert.NoError(t, err)
 				for _, groupName := range tc.groupNames {
 					assert.Contains(t, userGroups, groupName)
@@ -242,20 +244,7 @@ func TestAddUserToGroup(t *testing.T) {
 }
 
 func TestRemoveUserFromGroup(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
-
-	// Create test group and add user
-	err := CreateUserGroup("testGroup")
-	require.NoError(t, err)
-	err = CreateUserGroup("testGroup1")
-	require.NoError(t, err)
-	err = CreateUserGroup("testGroup2")
-	require.NoError(t, err)
-	err = CreateUserGroup("testGroup3")
-	require.NoError(t, err)
-	err = AddUserToGroup("testUser", "testGroup")
-	require.NoError(t, err)
+	t.Parallel()
 
 	testCases := []struct {
 		name       string
@@ -275,14 +264,14 @@ func TestRemoveUserFromGroup(t *testing.T) {
 			userName:   "testUser",
 			groupNames: []string{"nonExistentGroup"},
 			wantErr:    true,
-			errType:    &NotFoundError{},
+			errType:    &auth.NotFoundError{},
 		},
 		{
 			name:       "cannot remove nullUser",
 			userName:   nullUser,
 			groupNames: []string{"testGroup"},
 			wantErr:    true,
-			errType:    &ConflictError{},
+			errType:    &auth.ConflictError{},
 		},
 		{
 			name:       "remove user from multiple groups",
@@ -294,7 +283,27 @@ func TestRemoveUserFromGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := RemoveUserFromGroup(tc.userName, tc.groupNames...)
+			t.Parallel()
+
+			authModule := setupTestAuth(t)
+
+			// Create test groups
+			err := authModule.CreateUserGroup("testGroup")
+			require.NoError(t, err)
+			err = authModule.CreateUserGroup("testGroup1")
+			require.NoError(t, err)
+			err = authModule.CreateUserGroup("testGroup2")
+			require.NoError(t, err)
+			err = authModule.CreateUserGroup("testGroup3")
+			require.NoError(t, err)
+
+			// Add user to groups for removal tests
+			if tc.userName == "testUser" && tc.name == "remove user from group" {
+				err = authModule.AddUserToGroup("testUser", "testGroup")
+				require.NoError(t, err)
+			}
+
+			err = authModule.RemoveUserFromGroup(tc.userName, tc.groupNames...)
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
@@ -304,7 +313,7 @@ func TestRemoveUserFromGroup(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Verify user is no longer in group
-				userGroups, err := GetGroupsForUser(tc.userName)
+				userGroups, err := authModule.GetGroupsForUser(tc.userName)
 				assert.NoError(t, err)
 				for _, groupName := range tc.groupNames {
 					assert.NotContains(t, userGroups, groupName)
@@ -315,8 +324,9 @@ func TestRemoveUserFromGroup(t *testing.T) {
 }
 
 func TestCreateResourceGroup(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
+	t.Parallel()
+
+	authModule := setupTestAuth(t)
 
 	testCases := []struct {
 		name      string
@@ -337,18 +347,20 @@ func TestCreateResourceGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := CreateResourceGroup(tc.groupName)
+			t.Parallel()
+
+			err := authModule.CreateResourceGroup(tc.groupName)
 			if tc.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 
 				// Verify group exists
-				exists, err := ResourceGroupExists(tc.groupName)
+				exists, err := authModule.ResourceGroupExists(tc.groupName)
 				assert.NoError(t, err)
 				assert.True(t, exists)
 
-				assignedResources, err := GetResourceGroup(tc.groupName)
+				assignedResources, err := authModule.GetResourceGroup(tc.groupName)
 				assert.NoError(t, err)
 				assert.Len(t, assignedResources, 0)
 			}
@@ -357,12 +369,7 @@ func TestCreateResourceGroup(t *testing.T) {
 }
 
 func TestRemoveResourceGroup(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
-
-	// Create a test resource group
-	err := CreateResourceGroup("testRemoveResourceGroup")
-	require.NoError(t, err)
+	t.Parallel()
 
 	testCases := []struct {
 		name      string
@@ -379,19 +386,29 @@ func TestRemoveResourceGroup(t *testing.T) {
 			name:      "remove non-existing resource group",
 			groupName: "nonExistentResourceGroup",
 			wantErr:   true,
-			errType:   &NotFoundError{},
+			errType:   &auth.NotFoundError{},
 		},
 		{
 			name:      "cannot remove enclave_admin resource group",
 			groupName: enclaveAdminGroup,
 			wantErr:   true,
-			errType:   &ConflictError{},
+			errType:   &auth.ConflictError{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := RemoveResourceGroup(tc.groupName)
+			t.Parallel()
+
+			authModule := setupTestAuth(t)
+
+			// Create a test resource group for the removal test
+			if tc.groupName == "testRemoveResourceGroup" {
+				err := authModule.CreateResourceGroup("testRemoveResourceGroup")
+				require.NoError(t, err)
+			}
+
+			err := authModule.RemoveResourceGroup(tc.groupName)
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
@@ -401,7 +418,7 @@ func TestRemoveResourceGroup(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Verify group no longer exists
-				exists, err := ResourceGroupExists(tc.groupName)
+				exists, err := authModule.ResourceGroupExists(tc.groupName)
 				assert.NoError(t, err)
 				assert.False(t, exists)
 			}
@@ -410,14 +427,7 @@ func TestRemoveResourceGroup(t *testing.T) {
 }
 
 func TestAddResourceToGroup(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
-
-	// Create test resource groups
-	err := CreateResourceGroup("testResourceGroup1")
-	require.NoError(t, err)
-	err = CreateResourceGroup("testResourceGroup2")
-	require.NoError(t, err)
+	t.Parallel()
 
 	testCases := []struct {
 		name         string
@@ -443,13 +453,30 @@ func TestAddResourceToGroup(t *testing.T) {
 			resourceName: "testResource3",
 			groupNames:   []string{"nonExistentResourceGroup"},
 			wantErr:      true,
-			errType:      &NotFoundError{},
+			errType:      &auth.NotFoundError{},
+		},
+		{
+			name:         "add null resource to group",
+			resourceName: nullResource,
+			groupNames:   []string{"testResourceGroup1"},
+			wantErr:      true,
+			errType:      &auth.ConflictError{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := AddResourceToGroup(tc.resourceName, tc.groupNames...)
+			t.Parallel()
+
+			authModule := setupTestAuth(t)
+
+			// Create test resource groups
+			err := authModule.CreateResourceGroup("testResourceGroup1")
+			require.NoError(t, err)
+			err = authModule.CreateResourceGroup("testResourceGroup2")
+			require.NoError(t, err)
+
+			err = authModule.AddResourceToGroup(tc.resourceName, tc.groupNames...)
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
@@ -459,7 +486,7 @@ func TestAddResourceToGroup(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Verify resource is in groups
-				resourceGroups, err := GetGroupsForResource(tc.resourceName)
+				resourceGroups, err := authModule.GetGroupsForResource(tc.resourceName)
 				assert.NoError(t, err)
 				for _, groupName := range tc.groupNames {
 					assert.Contains(t, resourceGroups, groupName)
@@ -470,14 +497,7 @@ func TestAddResourceToGroup(t *testing.T) {
 }
 
 func TestAddPolicy(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
-
-	// Create test groups
-	err := CreateUserGroup("testUserGroup")
-	require.NoError(t, err)
-	err = CreateResourceGroup("testResourceGroup")
-	require.NoError(t, err)
+	t.Parallel()
 
 	testCases := []struct {
 		name          string
@@ -507,7 +527,7 @@ func TestAddPolicy(t *testing.T) {
 			resourceGroup: "testResourceGroup",
 			method:        "POST",
 			wantErr:       true,
-			errType:       &NotFoundError{},
+			errType:       &auth.NotFoundError{},
 		},
 		{
 			name:          "add policy with non-existent resource group",
@@ -515,13 +535,23 @@ func TestAddPolicy(t *testing.T) {
 			resourceGroup: "nonExistentResourceGroup",
 			method:        "POST",
 			wantErr:       true,
-			errType:       &NotFoundError{},
+			errType:       &auth.NotFoundError{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := AddPolicy(tc.userGroup, tc.resourceGroup, tc.method)
+			t.Parallel()
+
+			authModule := setupTestAuth(t)
+
+			// Create test groups
+			err := authModule.CreateUserGroup("testUserGroup")
+			require.NoError(t, err)
+			err = authModule.CreateResourceGroup("testResourceGroup")
+			require.NoError(t, err)
+
+			err = authModule.AddPolicy(tc.userGroup, tc.resourceGroup, tc.method)
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
@@ -531,25 +561,27 @@ func TestAddPolicy(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Verify policy exists
-				policies, err := enforcer.GetFilteredPolicy(0, tc.userGroup, tc.resourceGroup, tc.method)
+				policies, err := authModule.ListPolicies()
 				assert.NoError(t, err)
-				assert.Len(t, policies, 1)
+
+				foundPolicy := false
+				for _, policy := range policies {
+					if policy.UserGroup == tc.userGroup &&
+						policy.ResourceGroup == tc.resourceGroup &&
+						policy.Permission == tc.method {
+						foundPolicy = true
+
+						break
+					}
+				}
+				assert.True(t, foundPolicy)
 			}
 		})
 	}
 }
 
 func TestRemovePolicy(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
-
-	// Create test groups and add a policy
-	err := CreateUserGroup("testUserGroup")
-	require.NoError(t, err)
-	err = CreateResourceGroup("testResourceGroup")
-	require.NoError(t, err)
-	err = AddPolicy("testUserGroup", "testResourceGroup", "GET")
-	require.NoError(t, err)
+	t.Parallel()
 
 	testCases := []struct {
 		name          string
@@ -579,13 +611,28 @@ func TestRemovePolicy(t *testing.T) {
 			resourceGroup: "*",
 			method:        "*",
 			wantErr:       true,
-			errType:       &ConflictError{},
+			errType:       &auth.ConflictError{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := RemovePolicy(tc.userGroup, tc.resourceGroup, tc.method)
+			t.Parallel()
+
+			authModule := setupTestAuth(t)
+
+			// Create test groups and add a policy
+			err := authModule.CreateUserGroup("testUserGroup")
+			require.NoError(t, err)
+			err = authModule.CreateResourceGroup("testResourceGroup")
+			require.NoError(t, err)
+
+			if tc.name == "remove existing policy" {
+				err = authModule.AddPolicy("testUserGroup", "testResourceGroup", "GET")
+				require.NoError(t, err)
+			}
+
+			err = authModule.RemovePolicy(tc.userGroup, tc.resourceGroup, tc.method)
 			if tc.wantErr {
 				assert.Error(t, err)
 				if tc.errType != nil {
@@ -599,16 +646,17 @@ func TestRemovePolicy(t *testing.T) {
 }
 
 func TestGetUserGroups(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
+	t.Parallel()
+
+	authModule := setupTestAuth(t)
 
 	// Create test groups
-	err := CreateUserGroup("testGroup1")
+	err := authModule.CreateUserGroup("testGroup1")
 	require.NoError(t, err)
-	err = CreateUserGroup("testGroup2")
+	err = authModule.CreateUserGroup("testGroup2")
 	require.NoError(t, err)
 
-	groups, err := GetUserGroups()
+	groups, err := authModule.GetUserGroups()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, groups)
 
@@ -623,16 +671,17 @@ func TestGetUserGroups(t *testing.T) {
 }
 
 func TestGetResourceGroups(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
+	t.Parallel()
+
+	authModule := setupTestAuth(t)
 
 	// Create test resource groups
-	err := CreateResourceGroup("testResourceGroup1")
+	err := authModule.CreateResourceGroup("testResourceGroup1")
 	require.NoError(t, err)
-	err = CreateResourceGroup("testResourceGroup2")
+	err = authModule.CreateResourceGroup("testResourceGroup2")
 	require.NoError(t, err)
 
-	groups, err := GetResourceGroups()
+	groups, err := authModule.GetResourceGroups()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, groups)
 
@@ -646,18 +695,19 @@ func TestGetResourceGroups(t *testing.T) {
 }
 
 func TestGetUserGroup(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
+	t.Parallel()
+
+	authModule := setupTestAuth(t)
 
 	// Create test group and add users
-	err := CreateUserGroup("testGroup")
+	err := authModule.CreateUserGroup("testGroup")
 	require.NoError(t, err)
-	err = AddUserToGroup("user1", "testGroup")
+	err = authModule.AddUserToGroup("user1", "testGroup")
 	require.NoError(t, err)
-	err = AddUserToGroup("user2", "testGroup")
+	err = authModule.AddUserToGroup("user2", "testGroup")
 	require.NoError(t, err)
 
-	users, err := GetUserGroup("testGroup")
+	users, err := authModule.GetUserGroup("testGroup")
 	assert.NoError(t, err)
 	assert.Contains(t, users, "user1")
 	assert.Contains(t, users, "user2")
@@ -665,60 +715,63 @@ func TestGetUserGroup(t *testing.T) {
 }
 
 func TestGetResourceGroup(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
+	t.Parallel()
+
+	authModule := setupTestAuth(t)
 
 	// Create test resource group and add resources
-	err := CreateResourceGroup("testResourceGroup")
+	err := authModule.CreateResourceGroup("testResourceGroup")
 	require.NoError(t, err)
-	err = AddResourceToGroup("resource1", "testResourceGroup")
+	err = authModule.AddResourceToGroup("resource1", "testResourceGroup")
 	require.NoError(t, err)
-	err = AddResourceToGroup("resource2", "testResourceGroup")
+	err = authModule.AddResourceToGroup("resource2", "testResourceGroup")
 	require.NoError(t, err)
 
-	resources, err := GetResourceGroup("testResourceGroup")
+	resources, err := authModule.GetResourceGroup("testResourceGroup")
 	assert.NoError(t, err)
 	assert.Contains(t, resources, "resource1")
 	assert.Contains(t, resources, "resource2")
 }
 
 func TestRemoveUser(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
+	t.Parallel()
+
+	authModule := setupTestAuth(t)
 
 	// Create test groups and add user
-	err := CreateUserGroup("testGroup1")
+	err := authModule.CreateUserGroup("testGroup1")
 	require.NoError(t, err)
-	err = CreateUserGroup("testGroup2")
+	err = authModule.CreateUserGroup("testGroup2")
 	require.NoError(t, err)
-	err = AddUserToGroup("testUser", "testGroup1", "testGroup2")
+	err = authModule.AddUserToGroup("testUser", "testGroup1", "testGroup2")
 	require.NoError(t, err)
 
 	// Remove user
-	err = RemoveUser("testUser")
+	err = authModule.RemoveUser("testUser")
 	assert.NoError(t, err)
 
 	// Verify user is removed from all groups
-	userGroups, err := GetGroupsForUser("testUser")
+	userGroups, err := authModule.GetGroupsForUser("testUser")
 	assert.NoError(t, err)
 	assert.Empty(t, userGroups)
 
 	// Test removing nullUser
-	err = RemoveUser(nullUser)
-	var errConflict *ConflictError
+	err = authModule.RemoveUser(nullUser)
+	var errConflict *auth.ConflictError
 	assert.ErrorAs(t, err, &errConflict)
 }
 
 func TestRemoveResource(t *testing.T) {
-	adapter := setupTestAdapter(t)
-	InitAuth(adapter)
+	t.Parallel()
+
+	authModule := setupTestAuth(t)
 
 	// Create test resource groups and add resource
-	err := CreateResourceGroup("testResourceGroup1")
+	err := authModule.CreateResourceGroup("testResourceGroup1")
 	require.NoError(t, err)
-	err = CreateResourceGroup("testResourceGroup2")
+	err = authModule.CreateResourceGroup("testResourceGroup2")
 	require.NoError(t, err)
-	err = AddResourceToGroup(
+	err = authModule.AddResourceToGroup(
 		"testResource",
 		"testResourceGroup1",
 		"testResourceGroup2",
@@ -726,23 +779,25 @@ func TestRemoveResource(t *testing.T) {
 	require.NoError(t, err)
 
 	// Remove resource
-	err = RemoveResource("testResource")
+	err = authModule.RemoveResource("testResource")
 	assert.NoError(t, err)
 
 	// Verify resource is removed from all groups
-	resourceGroups, err := GetGroupsForResource("testResource")
+	resourceGroups, err := authModule.GetGroupsForResource("testResource")
 	assert.NoError(t, err)
 	assert.Empty(t, resourceGroups)
 }
 
 func TestGroupManagerInterface(t *testing.T) {
+	t.Parallel()
+
 	// Test that UserGroup implements group interface
-	ug := UserGroup{UserName: "testUser", GroupName: "testGroup"}
+	ug := auth.UserGroup{UserName: "testUser", GroupName: "testGroup"}
 	assert.Equal(t, "testUser", ug.GetName())
 	assert.Equal(t, "testGroup", ug.GetGroupName())
 
 	// Test that ResourceGroup implements group interface
-	rg := ResourceGroup{ResourceName: "testResource", GroupName: "testGroup"}
+	rg := auth.ResourceGroup{ResourceName: "testResource", GroupName: "testGroup"}
 	assert.Equal(t, "testResource", rg.GetName())
 	assert.Equal(t, "testGroup", rg.GetGroupName())
 }
@@ -752,9 +807,9 @@ func BenchmarkInitAuth(b *testing.B) {
 	tempDir := b.TempDir()
 	tempFile := filepath.Join(tempDir, "bench_policy.csv")
 
-	for b.Loop() {
+	for range b.N {
 		adapter := fileadapter.NewAdapter(tempFile)
-		InitAuth(adapter)
+		auth.NewModule(adapter)
 	}
 }
 
@@ -769,14 +824,15 @@ func BenchmarkAddUserToGroup(b *testing.B) {
 	require.NoError(b, err)
 
 	adapter := fileadapter.NewAdapter(tempFile)
-	InitAuth(adapter)
-	err = CreateUserGroup("benchGroup")
+	authModule := auth.NewModule(adapter)
+	err = authModule.CreateUserGroup("benchGroup")
 	require.NoError(b, err)
 
-	for b.Loop() {
-		err = AddUserToGroup("benchUser", "benchGroup")
+	b.ResetTimer()
+	for range b.N {
+		err = authModule.AddUserToGroup("benchUser", "benchGroup")
 		require.NoError(b, err)
-		err = RemoveUser("benchUser")
+		err = authModule.RemoveUser("benchUser")
 		require.NoError(b, err)
 	}
 }
@@ -792,16 +848,40 @@ func BenchmarkAddPolicy(b *testing.B) {
 	require.NoError(b, err)
 
 	adapter := fileadapter.NewAdapter(tempFile)
-	InitAuth(adapter)
-	err = CreateUserGroup("benchUserGroup")
+	authModule := auth.NewModule(adapter)
+	err = authModule.CreateUserGroup("benchUserGroup")
 	require.NoError(b, err)
-	err = CreateResourceGroup("benchResourceGroup")
+	err = authModule.CreateResourceGroup("benchResourceGroup")
 	require.NoError(b, err)
 
-	for b.Loop() {
-		err = AddPolicy("benchUserGroup", "benchResourceGroup", "GET")
+	b.ResetTimer()
+	for range b.N {
+		err = authModule.AddPolicy("benchUserGroup", "benchResourceGroup", "GET")
 		require.NoError(b, err)
-		err = RemovePolicy("benchUserGroup", "benchResourceGroup", "GET")
+		err = authModule.RemovePolicy("benchUserGroup", "benchResourceGroup", "GET")
 		require.NoError(b, err)
 	}
+}
+
+func TestSetAuthenticatedUser(t *testing.T) {
+	t.Parallel()
+
+	user := "testUserID"
+
+	r := &http.Request{}
+	r = r.WithContext(auth.SetAuthenticatedUser(r.Context(), user))
+
+	actual := auth.GetAuthenticatedUser(r.Context())
+
+	assert.Equal(t, user, actual)
+}
+
+func TestGetAuthenticatedUser_Unauthenticated(t *testing.T) {
+	t.Parallel()
+
+	r := &http.Request{}
+
+	actual := auth.GetAuthenticatedUser(r.Context())
+
+	assert.Equal(t, auth.UnauthenticatedUser, actual)
 }

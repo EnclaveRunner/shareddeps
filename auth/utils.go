@@ -2,16 +2,18 @@ package auth
 
 import (
 	"context"
-
-	"github.com/gin-gonic/gin"
 )
 
-func InsertAuthenticatedUser(c *gin.Context, user string) {
-	c.Set(ContextKeyAuthenticatedUser, user)
+type contextKey string
+
+const authenticatedUser contextKey = "authenticatedUser"
+
+func SetAuthenticatedUser(ctx context.Context, user string) context.Context {
+	return context.WithValue(ctx, authenticatedUser, user)
 }
 
-func RetrieveAuthenticatedUser(ctx context.Context) string {
-	user, ok := ctx.Value(ContextKeyAuthenticatedUser).(string)
+func GetAuthenticatedUser(ctx context.Context) string {
+	user, ok := ctx.Value(authenticatedUser).(string)
 	if !ok {
 		return UnauthenticatedUser
 	}

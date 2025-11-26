@@ -58,7 +58,7 @@ func TestLoadAppConfig_WithDefaults(t *testing.T) {
 	clearEnv(t)
 
 	config := &MinimalConfig{}
-	err := LoadAppConfig(config, "test-service", "1.0.0")
+	err := PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.NoError(t, err)
 	assert.False(t, config.HumanReadableOutput)
@@ -77,7 +77,7 @@ func TestLoadAppConfig_WithEnvironmentVariables(t *testing.T) {
 	t.Setenv("ENCLAVE_PRODUCTION_ENVIRONMENT", "false")
 
 	config := &MinimalConfig{}
-	err := LoadAppConfig(config, "test-service", "1.0.0")
+	err := PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.NoError(t, err)
 	assert.True(t, config.HumanReadableOutput)
@@ -96,7 +96,7 @@ func TestLoadAppConfig_WithCustomDefaults(t *testing.T) {
 		{Key: "port", Value: "3000"},
 	}
 
-	err := LoadAppConfig(config, "test-service", "1.0.0", defaults...)
+	err := PopulateAppConfig(config, "test-service", "1.0.0", defaults...)
 
 	require.NoError(t, err)
 	assert.Equal(t, "default_value", config.TestField)
@@ -109,7 +109,7 @@ func TestLoadAppConfig_InvalidLogLevel(t *testing.T) {
 	t.Setenv("ENCLAVE_LOG_LEVEL", "invalid")
 
 	config := &MinimalConfig{}
-	err := LoadAppConfig(config, "test-service", "1.0.0")
+	err := PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.Error(t, err)
 	var configErr ConfigError
@@ -124,7 +124,7 @@ func TestLoadAppConfig_InvalidPort_TooLow(t *testing.T) {
 	t.Setenv("ENCLAVE_PORT", "0")
 
 	config := &MinimalConfig{}
-	err := LoadAppConfig(config, "test-service", "1.0.0")
+	err := PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.Error(t, err)
 	var configErr ConfigError
@@ -138,7 +138,7 @@ func TestLoadAppConfig_InvalidPort_TooHigh(t *testing.T) {
 	t.Setenv("ENCLAVE_PORT", "65536")
 
 	config := &MinimalConfig{}
-	err := LoadAppConfig(config, "test-service", "1.0.0")
+	err := PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.Error(t, err)
 	var configErr ConfigError
@@ -150,7 +150,7 @@ func TestLoadAppConfig_MissingRequiredField(t *testing.T) {
 	clearEnv(t)
 
 	config := &TestConfig{}
-	err := LoadAppConfig(config, "test-service", "1.0.0")
+	err := PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.Error(t, err)
 	var configErr ConfigError
@@ -178,7 +178,7 @@ func TestLoadAppConfig_AllLogLevels(t *testing.T) {
 			t.Setenv("ENCLAVE_LOG_LEVEL", tt.logLevel)
 
 			config := &MinimalConfig{}
-			err := LoadAppConfig(config, "test-service", "1.0.0")
+			err := PopulateAppConfig(config, "test-service", "1.0.0")
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.logLevel, config.LogLevel)
@@ -212,7 +212,7 @@ test_field: from_file
 	require.NoError(t, err)
 
 	config := &TestConfig{}
-	err = LoadAppConfig(config, "test-service", "1.0.0")
+	err = PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.NoError(t, err)
 	assert.Equal(t, "warn", config.LogLevel)
@@ -248,7 +248,7 @@ test_field: from_file
 	require.NoError(t, err)
 
 	config := &TestConfig{}
-	err = LoadAppConfig(config, "test-service", "1.0.0")
+	err = PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.NoError(t, err)
 	assert.Equal(t, "warn", config.LogLevel)
@@ -258,19 +258,6 @@ test_field: from_file
 		config.Port,
 	) // Environment variable should override file
 	assert.Equal(t, "from_file", config.TestField)
-}
-
-func TestLoadAppConfig_SetsGlobalConfig(t *testing.T) {
-	clearEnv(t)
-
-	t.Setenv("ENCLAVE_PORT", "4000")
-
-	config := &MinimalConfig{}
-	err := LoadAppConfig(config, "test-service", "1.0.0")
-
-	require.NoError(t, err)
-	assert.Equal(t, 4000, Cfg.Port)
-	assert.Equal(t, config.Port, Cfg.Port)
 }
 
 func TestGetBase(t *testing.T) {
@@ -307,7 +294,7 @@ database:
 	require.NoError(t, err)
 
 	config := &ConfigWithNested{}
-	err = LoadAppConfig(config, "test-service", "1.0.0")
+	err = PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.NoError(t, err)
 	assert.Equal(t, "test_value", config.Database.NestedField)
@@ -322,7 +309,7 @@ func TestLoadAppConfig_NestedConfigFromEnv(t *testing.T) {
 	t.Setenv("ENCLAVE_DATABASE_OPTIONAL_INT", "100")
 
 	config := &ConfigWithNested{}
-	err := LoadAppConfig(config, "test-service", "1.0.0")
+	err := PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.NoError(t, err)
 	assert.Equal(t, "env_value", config.Database.NestedField)
@@ -333,7 +320,7 @@ func TestLoadAppConfig_MissingNestedRequiredField(t *testing.T) {
 	clearEnv(t)
 
 	config := &ConfigWithNested{}
-	err := LoadAppConfig(config, "test-service", "1.0.0")
+	err := PopulateAppConfig(config, "test-service", "1.0.0")
 
 	require.Error(t, err)
 	var configErr ConfigError
@@ -352,9 +339,6 @@ func clearEnv(t *testing.T) {
 	_ = os.Unsetenv("ENCLAVE_TEST_FIELD")
 	_ = os.Unsetenv("ENCLAVE_DATABASE_NESTED_FIELD")
 	_ = os.Unsetenv("ENCLAVE_DATABASE_OPTIONAL_INT")
-
-	// Reset global config
-	Cfg = &BaseConfig{}
 
 	// Reset log level to info for consistency
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
