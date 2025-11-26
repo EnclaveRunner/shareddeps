@@ -56,7 +56,7 @@ func TestInitAuth(t *testing.T) {
 			break
 		}
 	}
-	assert.True(t, foundAdminPolicy, "enclaveAdmin policy should exist")
+	assert.True(t, foundAdminPolicy, "enclave_admin policy should exist")
 
 	// Verify that nullUser is in enclaveAdmin group
 	userGroups, err := enforcer.GetNamedGroupingPolicy("g")
@@ -71,7 +71,7 @@ func TestInitAuth(t *testing.T) {
 			break
 		}
 	}
-	assert.True(t, foundAdminGroup, "nullUser should be in enclaveAdmin group")
+	assert.True(t, foundAdminGroup, "nullUser should be in enclave_admin group")
 }
 
 func TestCreateUserGroup(t *testing.T) {
@@ -147,7 +147,7 @@ func TestRemoveUserGroup(t *testing.T) {
 			errType:   &NotFoundError{},
 		},
 		{
-			name:      "cannot remove enclaveAdmin group",
+			name:      "cannot remove enclave_admin group",
 			groupName: enclaveAdminGroup,
 			wantErr:   true,
 			errType:   &ConflictError{},
@@ -382,7 +382,7 @@ func TestRemoveResourceGroup(t *testing.T) {
 			errType:   &NotFoundError{},
 		},
 		{
-			name:      "cannot remove enclaveAdmin resource group",
+			name:      "cannot remove enclave_admin resource group",
 			groupName: enclaveAdminGroup,
 			wantErr:   true,
 			errType:   &ConflictError{},
@@ -574,7 +574,7 @@ func TestRemovePolicy(t *testing.T) {
 			wantErr:       false, // Should not error for non-existent policy
 		},
 		{
-			name:          "cannot remove enclaveAdmin policy",
+			name:          "cannot remove enclave_admin policy",
 			userGroup:     enclaveAdminGroup,
 			resourceGroup: "*",
 			method:        "*",

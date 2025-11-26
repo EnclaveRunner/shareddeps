@@ -64,9 +64,9 @@ func InitAuth(adapter persist.Adapter) *casbin.Enforcer {
 	if !containsAdminPolicy {
 		_, err = enforcer.AddPolicy(enclaveAdminGroup, "*", "*")
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to add enclaveAdmin casbin policy")
+			log.Fatal().Err(err).Msg("Failed to add enclave_admin casbin policy")
 		}
-		log.Info().Msg("Added enclaveAdmin casbin policy")
+		log.Info().Msg("Added enclave_admin casbin policy")
 	}
 
 	userGroups, err := enforcer.GetNamedGroupingPolicy("g")
@@ -86,7 +86,7 @@ func InitAuth(adapter persist.Adapter) *casbin.Enforcer {
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Msg("Failed to add admin to enclaveAdmin casbin group")
+				Msg("Failed to add admin to enclave_admin casbin group")
 		}
 	}
 
