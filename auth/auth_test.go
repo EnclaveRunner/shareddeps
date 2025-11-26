@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	nullUser          = "nullUser"
-	nullResource      = "nullResource"
-	enclaveAdminGroup = "enclaveAdmin"
+	enclaveAdminGroup = "enclave_admin"
+	nullUser		  = "null_user"
+	nullResource	  = "null_resource"
 )
 
 func setupTestAuth(t *testing.T) auth.AuthModule {
@@ -58,19 +58,10 @@ func TestInitAuth(t *testing.T) {
 	}
 	assert.True(t, foundAdminPolicy, "enclave_admin policy should exist")
 
-	// Verify that nullUser is in enclaveAdmin group
-	userGroups, err := authModule.GetUserGroups()
-	require.NoError(t, err)
-
-	foundAdminGroup := false
-	for _, group := range userGroups {
-		if group.UserName == nullUser && group.GroupName == enclaveAdminGroup {
-			foundAdminGroup = true
-
-			break
-		}
-	}
-	assert.True(t, foundAdminGroup, "nullUser should be in enclave_admin group")
+	// Verify that enclave_admin group is empty
+	userGroups, err := authModule.GetUserGroup(enclaveAdminGroup)
+	assert.NoError(t, err)
+	assert.Empty(t, userGroups, "enclave_admin group should be empty")
 }
 
 func TestCreateUserGroup(t *testing.T) {
@@ -462,6 +453,13 @@ func TestAddResourceToGroup(t *testing.T) {
 			groupNames:   []string{"nonExistentResourceGroup"},
 			wantErr:      true,
 			errType:      &auth.NotFoundError{},
+		},
+		{
+			name: "add null resource to group",
+			resourceName: nullResource,
+			groupNames: []string{"testResourceGroup1"},
+			wantErr: true,
+			errType: &auth.ConflictError{},
 		},
 	}
 
