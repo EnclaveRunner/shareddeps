@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	nullUser                    = "nullUser"
-	nullResource                = "nullResource"
-	enclaveAdminGroup           = "enclaveAdmin"
+	nullUser                    = "null_user"
+	nullResource                = "null_resource"
+	enclaveAdminGroup           = "enclave_admin"
 	ContextKeyAuthenticatedUser = "enclave/authenticatedUser"
 	UnauthenticatedUser         = "__unauthenticated__"
 )
