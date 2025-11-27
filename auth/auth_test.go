@@ -2,6 +2,7 @@
 package auth_test
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -894,8 +895,15 @@ func TestSetAuthenticatedUser_GinContext(t *testing.T) {
 
 	c, engine := gin.CreateTestContext(nil)
 	engine.ContextWithFallback = true
-	c.Request, _ = http.NewRequest("GET", "/", nil)
-	c.Request = c.Request.WithContext(auth.SetAuthenticatedUser(c.Request.Context(), user))
+	c.Request, _ = http.NewRequestWithContext(
+		context.Background(),
+		http.MethodGet,
+		"/",
+		http.NoBody,
+	)
+	c.Request = c.Request.WithContext(
+		auth.SetAuthenticatedUser(c.Request.Context(), user),
+	)
 
 	actual := auth.GetAuthenticatedUser(c)
 
