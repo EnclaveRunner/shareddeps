@@ -35,6 +35,7 @@ func InitRESTServer(cfg config.HasBaseConfig) *gin.Engine {
 	}
 
 	restServer := gin.New()
+	restServer.ContextWithFallback = true
 
 	// Add recovery middleware
 	restServer.Use(gin.Recovery())

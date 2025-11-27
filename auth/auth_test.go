@@ -9,6 +9,7 @@ import (
 
 	"github.com/EnclaveRunner/shareddeps/auth"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -884,4 +885,19 @@ func TestGetAuthenticatedUser_Unauthenticated(t *testing.T) {
 	actual := auth.GetAuthenticatedUser(r.Context())
 
 	assert.Equal(t, auth.UnauthenticatedUser, actual)
+}
+
+func TestSetAuthenticatedUser_GinContext(t *testing.T) {
+	t.Parallel()
+
+	user := "testUserID"
+
+	c, engine := gin.CreateTestContext(nil)
+	engine.ContextWithFallback = true
+	c.Request, _ = http.NewRequest("GET", "/", nil)
+	c.Request = c.Request.WithContext(auth.SetAuthenticatedUser(c.Request.Context(), user))
+
+	actual := auth.GetAuthenticatedUser(c)
+
+	assert.Equal(t, user, actual)
 }
