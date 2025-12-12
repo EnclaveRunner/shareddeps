@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/EnclaveRunner/shareddeps/auth"
-	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
+	fileadapter "github.com/casbin/casbin/v3/persist/file-adapter"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
