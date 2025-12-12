@@ -3,7 +3,7 @@ package auth
 import (
 	"fmt"
 
-	"github.com/casbin/casbin/v2"
+	"github.com/casbin/casbin/v3"
 )
 
 // GroupType represents the policy type for different group kinds

@@ -3,7 +3,6 @@ module github.com/EnclaveRunner/shareddeps
 go 1.25.0
 
 require (
-	github.com/casbin/casbin/v2 v2.135.0
 	github.com/casbin/casbin/v3 v3.0.0
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/gin-gonic/gin v1.11.0
