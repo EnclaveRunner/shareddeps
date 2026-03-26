@@ -155,9 +155,9 @@ func (gm *groupManager[T]) GetGroups() ([]T, error) {
 	}
 
 	var zero T
-	groupsStructured := make([]T, len(groups))
-	for i, group := range groups {
-		groupsStructured[i] = gm.createGroupFunc(zero, group)
+	groupsStructured := make([]T, 0, len(groups))
+	for _, group := range groups {
+		groupsStructured = append(groupsStructured, gm.createGroupFunc(zero, group))
 	}
 
 	return groupsStructured, nil
