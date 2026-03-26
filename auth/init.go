@@ -6,6 +6,7 @@ import (
 	"github.com/casbin/casbin/v3"
 	"github.com/casbin/casbin/v3/model"
 	"github.com/casbin/casbin/v3/persist"
+	"github.com/casbin/casbin/v3/util"
 	"github.com/rs/zerolog/log"
 )
 
@@ -46,6 +47,11 @@ func NewModule(adapter persist.Adapter) AuthModule {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create casbin enforcer")
 	}
+
+	// Add KeyMatch2 function for resource group matching
+	// Endpoints can now contain ":name" for patterns. E.g.: /v1/user/:id
+	// See https://casbin.apache.org/de/docs/rbac-with-pattern for more info
+	enforcer.AddNamedMatchingFunc("g2", "KeyMatch2", util.KeyMatch2)
 
 	err = enforcer.LoadPolicy()
 	if err != nil {

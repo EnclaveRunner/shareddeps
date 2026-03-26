@@ -4,6 +4,7 @@ package auth_test
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -802,6 +803,90 @@ func TestGroupManagerInterface(t *testing.T) {
 	rg := auth.ResourceGroup{ResourceName: "testResource", GroupName: "testGroup"}
 	assert.Equal(t, "testResource", rg.GetName())
 	assert.Equal(t, "testGroup", rg.GetGroupName())
+}
+
+func TestMiddleware_ResourcePatternMatching(t *testing.T) {
+	t.Parallel()
+
+	authModule := setupTestAuth(t)
+
+	err := authModule.CreateUserGroup("pattern_users")
+	require.NoError(t, err)
+	err = authModule.CreateResourceGroup("user_resource_patterns")
+	require.NoError(t, err)
+	err = authModule.AddUserToGroup("test-user", "pattern_users")
+	require.NoError(t, err)
+	err = authModule.AddResourceToGroup("/v1/users/:id", "user_resource_patterns")
+	require.NoError(t, err)
+	err = authModule.AddPolicy(
+		"pattern_users",
+		"user_resource_patterns",
+		http.MethodGet,
+	)
+	require.NoError(t, err)
+
+	router := gin.New()
+	router.Use(authModule.Middleware())
+	router.GET("/v1/users/:id", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+	router.POST("/v1/users/:id", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+	router.GET("/v1/teams/:id", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	testCases := []struct {
+		name       string
+		method     string
+		path       string
+		user       string
+		wantStatus int
+	}{
+		{
+			name:       "allows matching path pattern",
+			method:     http.MethodGet,
+			path:       "/v1/users/123",
+			user:       "test-user",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "denies non-matching resource path",
+			method:     http.MethodGet,
+			path:       "/v1/teams/123",
+			user:       "test-user",
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "denies method not covered by policy",
+			method:     http.MethodPost,
+			path:       "/v1/users/123",
+			user:       "test-user",
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "denies unauthenticated user",
+			method:     http.MethodGet,
+			path:       "/v1/users/123",
+			user:       auth.UnauthenticatedUser,
+			wantStatus: http.StatusForbidden,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(tc.method, tc.path, http.NoBody)
+			req = req.WithContext(auth.SetAuthenticatedUser(req.Context(), tc.user))
+			res := httptest.NewRecorder()
+
+			router.ServeHTTP(res, req)
+
+			assert.Equal(t, tc.wantStatus, res.Code)
+		})
+	}
 }
 
 // Benchmark tests
