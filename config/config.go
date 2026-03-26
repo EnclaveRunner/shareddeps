@@ -47,7 +47,7 @@ func (e ConfigError) Unwrap() error {
 }
 
 func (e ConfigError) Is(target error) bool {
-	_, ok := target.(ConfigError)
+	_, ok := target.(*ConfigError)
 
 	return ok
 }
@@ -99,7 +99,7 @@ func (e ValidationError) Unwrap() error {
 }
 
 func (e ValidationError) Is(target error) bool {
-	_, ok := target.(ValidationError)
+	_, ok := target.(*ValidationError)
 
 	return ok
 }
