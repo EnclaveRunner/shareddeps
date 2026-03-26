@@ -878,7 +878,12 @@ func TestMiddleware_ResourcePatternMatching(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(tc.method, tc.path, http.NoBody)
+			req := httptest.NewRequestWithContext(
+				t.Context(),
+				tc.method,
+				tc.path,
+				http.NoBody,
+			)
 			req = req.WithContext(auth.SetAuthenticatedUser(req.Context(), tc.user))
 			res := httptest.NewRecorder()
 

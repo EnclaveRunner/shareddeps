@@ -51,7 +51,10 @@ func NewModule(adapter persist.Adapter) AuthModule {
 	// Add KeyMatch2 function for resource group matching
 	// Endpoints can now contain ":name" for patterns. E.g.: /v1/user/:id
 	// See https://casbin.apache.org/de/docs/rbac-with-pattern for more info
-	enforcer.AddNamedMatchingFunc("g2", "KeyMatch2", util.KeyMatch2)
+	ok := enforcer.AddNamedMatchingFunc("g2", "KeyMatch2", util.KeyMatch2)
+	if !ok {
+		log.Fatal().Msg("Failed to add KeyMatch2 function")
+	}
 
 	err = enforcer.LoadPolicy()
 	if err != nil {
