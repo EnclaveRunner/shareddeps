@@ -46,6 +46,12 @@ func (e ConfigError) Unwrap() error {
 	return e.Err
 }
 
+func (e ConfigError) Is(target error) bool {
+	_, ok := target.(ConfigError)
+
+	return ok
+}
+
 type ValidationError struct {
 	Err validator.FieldError
 }
@@ -90,6 +96,12 @@ func (e ValidationError) Error() string {
 
 func (e ValidationError) Unwrap() error {
 	return e.Err
+}
+
+func (e ValidationError) Is(target error) bool {
+	_, ok := target.(ValidationError)
+
+	return ok
 }
 
 func PopulateAppConfig[T HasBaseConfig](
