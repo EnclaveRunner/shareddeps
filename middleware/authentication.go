@@ -36,7 +36,8 @@ func Authentication(basicAuthAuthenticator BasicAuthenticator) gin.HandlerFunc {
 			}
 		} else {
 			// No authorization provided continue as anonymous user
-			log.Debug().Msg("No authentication provided. Proceeding as unauthenticated user")
+			log.Debug().
+				Msg("No authentication provided. Proceeding as unauthenticated user")
 			authenticatedUser = auth.UnauthenticatedUser
 		}
 
